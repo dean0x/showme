@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { HTTPServer } from "./server/http-server.js";
+import { ShowFileHandler } from "./handlers/show-file-handler.js";
+import { ConsoleLogger } from "./utils/logger.js";
 
 const ShowFileArgsSchema = z.object({
   path: z.string().describe("File path relative to workspace"),
@@ -14,6 +17,10 @@ const ShowDiffArgsSchema = z.object({
 });
 
 export function createServer(): McpServer {
+  const logger = new ConsoleLogger();
+  const httpServer = new HTTPServer(3847, logger);
+  const showFileHandler = new ShowFileHandler(httpServer, logger);
+  
   const server = new McpServer(
     {
       name: "showme-mcp",
@@ -21,21 +28,28 @@ export function createServer(): McpServer {
     }
   );
   
+  // Start HTTP server
+  httpServer.start().then((result) => {
+    if (result.ok) {
+      logger.info('ShowMe MCP server ready', { 
+        httpPort: result.value.port,
+        baseUrl: result.value.baseUrl 
+      });
+    } else {
+      logger.error('Failed to start HTTP server', { 
+        error: result.error.message,
+        code: result.error.code 
+      });
+    }
+  });
+  
   // Register showme.file tool
   server.tool(
     "showme.file",
     "Display a file in browser with syntax highlighting", 
     ShowFileArgsSchema.shape,
     async (args) => {
-      // Tool handler implementation
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `File display not yet implemented: ${args.path}`
-          }
-        ]
-      };
+      return await showFileHandler.handleFileRequest(args);
     }
   );
   
