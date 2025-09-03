@@ -2,7 +2,6 @@
  * Functional composition utilities following engineering principle #3
  * "Compose with pipes - Readable, maintainable chains"
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function pipe(...fns) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return async (input) => {

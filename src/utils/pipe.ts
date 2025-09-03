@@ -16,7 +16,6 @@ export type PipeFunction<TInput, TOutput, TError = Error> = (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPipeFunction = PipeFunction<any, any, any>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function pipe(...fns: AnyPipeFunction[]): AnyPipeFunction {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (input: any) => {
