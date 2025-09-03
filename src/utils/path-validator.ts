@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -25,7 +24,7 @@ export class PathValidator {
     this.workspaceRoot = path.resolve(workspaceRoot || process.cwd());
   }
 
-  validatePath(inputPath: string): Result<string, PathValidationError> {
+  validatePathSync(inputPath: string): Result<string, PathValidationError> {
     try {
       // Check for null byte attack
       if (inputPath.includes('\0')) {
@@ -40,7 +39,8 @@ export class PathValidator {
 
       // Check for Windows device names (CVE-2025-27210)
       const fileName = path.basename(inputPath);
-      const nameWithoutExt = fileName.split('.')[0].toUpperCase();
+      const dotIndex = fileName.indexOf('.');
+      const nameWithoutExt = (dotIndex === -1 ? fileName : fileName.substring(0, dotIndex)).toUpperCase();
       if (PathValidator.WINDOWS_DEVICE_NAMES.has(nameWithoutExt)) {
         return {
           ok: false,
@@ -98,11 +98,11 @@ export class PathValidator {
     }
   }
 
-  async validatePathAsync(
+  async validatePath(
     inputPath: string, 
     options: { checkAccess?: boolean } = {}
   ): Promise<Result<string, PathValidationError>> {
-    const result = this.validatePath(inputPath);
+    const result = this.validatePathSync(inputPath);
     
     if (!result.ok) {
       return result;
@@ -129,7 +129,7 @@ export class PathValidator {
     const validatedPaths: string[] = [];
     
     for (const inputPath of inputPaths) {
-      const result = this.validatePath(inputPath);
+      const result = this.validatePathSync(inputPath);
       if (!result.ok) {
         return result;
       }
