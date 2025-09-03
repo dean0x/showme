@@ -3,11 +3,11 @@ import { FileManager } from '../utils/file-manager.js';
 
 describe('FileManager', () => {
   it('should create FileManager instance', () => {
-    expect(() => new FileManager()).not.toThrow();
+    expect(() => FileManager.create()).not.toThrow();
   });
 
   it('should read file content with path validation', async () => {
-    const fileManager = new FileManager();
+    const fileManager = FileManager.create();
     
     // Use this test file as it exists
     const result = await fileManager.readFile('src/__tests__/file-manager.test.ts');
@@ -24,7 +24,7 @@ describe('FileManager', () => {
   });
 
   it('should handle file read errors gracefully', async () => {
-    const fileManager = new FileManager();
+    const fileManager = FileManager.create();
     
     const result = await fileManager.readFile('non-existent-file.txt');
     
@@ -35,7 +35,7 @@ describe('FileManager', () => {
   });
 
   it('should detect languages correctly', async () => {
-    const fileManager = new FileManager();
+    const fileManager = FileManager.create();
     
     // Test package.json (should detect as json)
     const result = await fileManager.readFile('package.json');

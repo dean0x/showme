@@ -1,3 +1,5 @@
+import { type Highlighter } from 'shiki';
+import { type Logger } from './logger.js';
 export interface FileViewOptions {
     filename: string;
     filepath: string;
@@ -8,11 +10,14 @@ export interface FileViewOptions {
     lastModified: Date;
 }
 export declare class HTMLGenerator {
-    private highlighter;
-    private initialized;
-    initialize(): Promise<void>;
+    private readonly highlighter;
+    private readonly logger;
+    constructor(highlighter?: Highlighter | null, logger?: Logger);
+    static create(logger?: Logger): Promise<HTMLGenerator>;
+    dispose(): Promise<void>;
     generateFileView(options: FileViewOptions): Promise<string>;
     private generateMarkdownView;
+    private escapeHtml;
     private buildHTMLTemplate;
     private getFileViewStyles;
     private getMarkdownStyles;

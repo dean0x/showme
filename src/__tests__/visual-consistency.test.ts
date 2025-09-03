@@ -5,7 +5,7 @@ import { displayFile } from '../utils/display-file.js';
 
 describe('Visual Consistency & Compliance', () => {
   it('should maintain consistent design tokens across all file views', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     // Test different file types
     const testFiles = [
@@ -34,10 +34,12 @@ describe('Visual Consistency & Compliance', () => {
       expect(html).toContain('class="file-header"');
       expect(html).toContain('class="file-content"');
     }
+    
+    await generator.dispose();
   });
 
   it('should provide WCAG 2.1 AA accessibility compliance', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.js',
@@ -69,10 +71,12 @@ describe('Visual Consistency & Compliance', () => {
 
     // Screen reader utilities
     expect(html).toContain('.sr-only');
+    
+    await generator.dispose();
   });
 
   it('should implement mobile-responsive design correctly', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.js',
@@ -92,6 +96,8 @@ describe('Visual Consistency & Compliance', () => {
     expect(html).toContain('flex-direction: column');
     expect(html).toContain('font-size: var(--text-xs)');
     expect(html).toContain('padding-bottom: var(--space-8)');
+    
+    await generator.dispose();
   });
 
   it('should provide consistent color contrast ratios', async () => {
@@ -133,7 +139,7 @@ describe('Visual Consistency & Compliance', () => {
   });
 
   it('should handle line highlighting consistently', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.js',
@@ -153,6 +159,8 @@ describe('Visual Consistency & Compliance', () => {
     // Should include scroll-to-line functionality
     expect(html).toContain('scrollIntoView');
     expect(html).toContain('.line-highlight');
+    
+    await generator.dispose();
   });
 
   it('should prepare foundation for diff views (future Sprint 2)', () => {

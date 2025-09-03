@@ -7,14 +7,14 @@ describe('HTMLGenerator', () => {
   });
 
   it('should initialize Shiki highlighter', async () => {
-    const generator = new HTMLGenerator();
-    
-    // Initialize should not throw
-    await expect(generator.initialize()).resolves.not.toThrow();
+    // Use factory method to create properly initialized instance
+    const generator = await HTMLGenerator.create();
+    expect(generator).toBeInstanceOf(HTMLGenerator);
+    await generator.dispose();
   });
 
   it('should generate highlighted HTML for TypeScript', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.ts',
@@ -29,10 +29,12 @@ describe('HTMLGenerator', () => {
     expect(html).toContain('ShowMe: test.ts');
     expect(html).toContain('const');
     expect(html).toContain('number');
+    
+    await generator.dispose();
   });
 
   it('should handle markdown with syntax highlighting', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const markdownContent = `# Test
 \`\`\`typescript
@@ -50,10 +52,12 @@ const hello = "world";
     
     expect(html).toContain('<h1>Test</h1>');
     expect(html).toContain('const hello');
+    
+    await generator.dispose();
   });
 
   it('should include file metadata in output', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     const testDate = new Date('2025-01-01');
     
     const html = await generator.generateFileView({
@@ -68,10 +72,12 @@ const hello = "world";
     expect(html).toContain('Path: /workspace/example.js');
     expect(html).toContain('Size: 1.0 KB');
     expect(html).toContain(testDate.toLocaleString());
+    
+    await generator.dispose();
   });
 
   it('should use theme system instead of hardcoded styles', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.js',
@@ -93,10 +99,12 @@ const hello = "world";
     expect(html).toContain('file-viewer');
     expect(html).toContain('file-header');
     expect(html).toContain('file-content');
+    
+    await generator.dispose();
   });
 
   it('should generate semantic HTML with ARIA labels', async () => {
-    const generator = new HTMLGenerator();
+    const generator = await HTMLGenerator.create();
     
     const html = await generator.generateFileView({
       filename: 'test.js',
@@ -112,5 +120,7 @@ const hello = "world";
     expect(html).toContain('aria-label');
     expect(html).toContain('<header');
     expect(html).toContain('<section');
+    
+    await generator.dispose();
   });
 });

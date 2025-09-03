@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { PathValidator, type Result, PathValidationError } from './path-validator.js';
+import { type Logger, ConsoleLogger } from './logger.js';
+
+declare const performance: {
+  now(): number;
+};
 
 export interface FileContent {
   content: string;
@@ -19,41 +24,92 @@ export class FileManagerError extends Error {
 }
 
 export class FileManager {
-  private pathValidator: PathValidator;
+  constructor(
+    private readonly pathValidator: PathValidator,
+    private readonly logger: Logger = new ConsoleLogger()
+  ) {}
 
-  constructor(workspaceRoot?: string) {
-    this.pathValidator = new PathValidator(workspaceRoot);
+  static create(workspaceRoot?: string, logger?: Logger): FileManager {
+    const pathValidator = new PathValidator(workspaceRoot);
+    return new FileManager(pathValidator, logger || new ConsoleLogger());
   }
 
   async readFile(inputPath: string): Promise<Result<FileContent, FileManagerError | PathValidationError>> {
-    // Validate path first
-    const pathResult = await this.pathValidator.validatePath(inputPath, { checkAccess: true });
-    if (!pathResult.ok) {
-      return { ok: false, error: pathResult.error };
-    }
+    const startTime = performance.now();
+    
+    this.logger.debug('Starting file read operation', {
+      inputPath,
+      timestamp: new Date().toISOString()
+    });
 
     try {
+      // Validate path first
+      const pathResult = await this.pathValidator.validatePath(inputPath, { checkAccess: true });
+      if (!pathResult.ok) {
+        this.logger.error('Path validation failed', {
+          inputPath,
+          error: pathResult.error.message,
+          code: pathResult.error.code
+        });
+        return { ok: false, error: pathResult.error };
+      }
+
       const resolvedPath = pathResult.value;
-      const content = await fs.readFile(resolvedPath, 'utf-8');
-      const stats = await fs.stat(resolvedPath);
-      
-      return {
-        ok: true,
-        value: {
+
+      try {
+        // Read file stats and content
+        const [content, stats] = await Promise.all([
+          fs.readFile(resolvedPath, 'utf-8'),
+          fs.stat(resolvedPath)
+        ]);
+
+        const duration = performance.now() - startTime;
+        const result: FileContent = {
           content,
           filepath: resolvedPath,
           filename: path.basename(resolvedPath),
           fileSize: stats.size,
           lastModified: stats.mtime,
           language: this.detectLanguage(resolvedPath)
-        }
-      };
+        };
+
+        this.logger.info('File read successfully', {
+          filepath: resolvedPath,
+          fileSize: stats.size,
+          language: result.language,
+          duration
+        });
+
+        return { ok: true, value: result };
+      } catch (fsError) {
+        const duration = performance.now() - startTime;
+        const error = new FileManagerError(
+          `Failed to read file: ${fsError instanceof Error ? fsError.message : String(fsError)}`,
+          'FILE_READ_ERROR'
+        );
+
+        this.logger.error('File system operation failed', {
+          filepath: resolvedPath,
+          operation: 'read',
+          duration,
+          error: fsError instanceof Error ? fsError.message : String(fsError)
+        });
+
+        return { ok: false, error };
+      }
     } catch (error) {
+      const duration = performance.now() - startTime;
+      this.logger.error('Unexpected error during file read', {
+        inputPath,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
       return {
         ok: false,
         error: new FileManagerError(
-          `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
-          'FILE_READ_ERROR'
+          `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
+          'UNEXPECTED_ERROR'
         )
       };
     }

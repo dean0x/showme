@@ -4,8 +4,8 @@ import { HTMLGenerator } from '../utils/html-generator.js';
 
 describe('File Display Integration', () => {
   it('should complete end-to-end file display pipeline', async () => {
-    const fileManager = new FileManager();
-    const htmlGenerator = new HTMLGenerator();
+    const fileManager = FileManager.create();
+    const htmlGenerator = await HTMLGenerator.create();
     
     // Read a real file
     const fileResult = await fileManager.readFile('package.json');
@@ -34,11 +34,13 @@ describe('File Display Integration', () => {
     // Verify JSON syntax highlighting
     expect(html).toContain('"name"');
     expect(html).toContain('"version"');
+    
+    await htmlGenerator.dispose();
   });
 
   it('should handle TypeScript files with syntax highlighting', async () => {
-    const fileManager = new FileManager();
-    const htmlGenerator = new HTMLGenerator();
+    const fileManager = FileManager.create();
+    const htmlGenerator = await HTMLGenerator.create();
     
     // Read TypeScript file
     const fileResult = await fileManager.readFile('src/utils/path-validator.ts');
@@ -51,12 +53,14 @@ describe('File Display Integration', () => {
     expect(html).toContain('export'); // Should have TypeScript syntax
     expect(html).toContain('PathValidator'); // Should contain class name
     expect(html).toContain('style="color:#F97583"'); // Should have syntax highlighting colors
+    
+    await htmlGenerator.dispose();
   });
 
   it('should provide a simple display helper function', async () => {
     const displayFile = async (filePath: string): Promise<{ok: boolean; error?: unknown; value?: string}> => {
-      const fileManager = new FileManager();
-      const htmlGenerator = new HTMLGenerator();
+      const fileManager = FileManager.create();
+      const htmlGenerator = await HTMLGenerator.create();
       
       const fileResult = await fileManager.readFile(filePath);
       if (!fileResult.ok) {
@@ -64,6 +68,7 @@ describe('File Display Integration', () => {
       }
       
       const html = await htmlGenerator.generateFileView(fileResult.value);
+      await htmlGenerator.dispose();
       return { ok: true, value: html };
     };
     

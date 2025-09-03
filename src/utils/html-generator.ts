@@ -1,5 +1,10 @@
 import { createHighlighter, type Highlighter, type BundledLanguage } from 'shiki';
 import { ThemeSystem } from './theme-system.js';
+import { type Logger, ConsoleLogger } from './logger.js';
+
+declare const performance: {
+  now(): number;
+};
 
 export interface FileViewOptions {
   filename: string;
@@ -12,28 +17,61 @@ export interface FileViewOptions {
 }
 
 export class HTMLGenerator {
-  private highlighter: Highlighter | null = null;
-  private initialized = false;
+  constructor(
+    private readonly highlighter: Highlighter | null = null,
+    private readonly logger: Logger = new ConsoleLogger()
+  ) {}
 
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
+  static async create(logger?: Logger): Promise<HTMLGenerator> {
+    const actualLogger = logger || new ConsoleLogger();
+    const startTime = performance.now();
+    
+    actualLogger.info('Initializing Shiki highlighter');
+    
+    try {
+      const highlighter = await createHighlighter({
+        themes: ['github-dark', 'github-light'],
+        langs: [
+          'javascript', 'typescript', 'jsx', 'tsx',
+          'python', 'java', 'cpp', 'c', 'html', 'css', 'scss',
+          'json', 'yaml', 'toml', 'xml', 'markdown',
+          'sql', 'bash', 'go', 'rust', 'php', 'ruby'
+        ] as BundledLanguage[]
+      });
 
-    this.highlighter = await createHighlighter({
-      themes: ['github-dark', 'github-light'],
-      langs: [
-        'javascript', 'typescript', 'jsx', 'tsx',
-        'python', 'java', 'cpp', 'c', 'html', 'css', 'scss',
-        'json', 'yaml', 'toml', 'xml', 'markdown',
-        'sql', 'bash', 'go', 'rust', 'php', 'ruby'
-      ] as BundledLanguage[]
-    });
+      const duration = performance.now() - startTime;
+      actualLogger.info('Shiki highlighter initialized successfully', { 
+        duration,
+        languages: highlighter.getLoadedLanguages().length,
+        themes: highlighter.getLoadedThemes().length
+      });
 
-    this.initialized = true;
+      return new HTMLGenerator(highlighter, actualLogger);
+    } catch (error) {
+      const duration = performance.now() - startTime;
+      actualLogger.error('Failed to initialize Shiki highlighter', {
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+
+  async dispose(): Promise<void> {
+    if (this.highlighter) {
+      try {
+        await this.highlighter.dispose();
+        this.logger.info('HTMLGenerator resources disposed successfully');
+      } catch (error) {
+        this.logger.error('Error disposing HTMLGenerator resources', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
   }
 
   async generateFileView(options: FileViewOptions): Promise<string> {
-    await this.initialize();
-
+    const startTime = performance.now();
     const {
       filename,
       filepath,
@@ -44,59 +82,143 @@ export class HTMLGenerator {
       lastModified
     } = options;
 
-    // Handle markdown files specially
-    if (language === 'markdown') {
-      return this.generateMarkdownView(options);
-    }
+    try {
+      this.logger.debug('Starting file view generation', {
+        filename,
+        language,
+        size: content.length,
+        hasLineHighlight: !!lineHighlight
+      });
 
-    // Generate syntax highlighted code
-    const highlightedCode = this.highlighter!.codeToHtml(content, {
-      lang: language as BundledLanguage,
-      theme: 'github-dark',
-      transformers: lineHighlight ? [
-        {
-          name: 'line-highlight',
-          line(node: {properties?: Record<string, unknown>}, line: number): void {
-            if (line === lineHighlight) {
-              node.properties = { 
-                ...node.properties, 
-                class: `${node.properties?.class || ''} line-highlight`.trim() 
-              };
-            }
-          }
+      // Handle markdown files specially
+      if (language === 'markdown') {
+        const result = await this.generateMarkdownView(options);
+        const duration = performance.now() - startTime;
+        
+        this.logger.info('Generated file view', {
+          filename,
+          language,
+          type: 'markdown',
+          duration
+        });
+        
+        return result;
+      }
+
+      // Generate syntax highlighted code with error handling
+      let highlightedCode: string;
+      
+      if (!this.highlighter) {
+        this.logger.warn('No highlighter available, generating plain HTML', { filename, language });
+        highlightedCode = `<pre><code>${this.escapeHtml(content)}</code></pre>`;
+      } else {
+        try {
+          highlightedCode = this.highlighter.codeToHtml(content, {
+            lang: language as BundledLanguage,
+            theme: 'github-dark',
+            transformers: lineHighlight ? [
+              {
+                name: 'line-highlight',
+                line(node: {properties?: Record<string, unknown>}, line: number): void {
+                  if (line === lineHighlight) {
+                    node.properties = { 
+                      ...node.properties, 
+                      class: `${node.properties?.class || ''} line-highlight`.trim() 
+                    };
+                  }
+                }
+              }
+            ] : []
+          });
+        } catch (highlightError) {
+          this.logger.error('Syntax highlighting failed', {
+            filename,
+            language,
+            error: highlightError instanceof Error ? highlightError.message : String(highlightError)
+          });
+          
+          // Fallback to plain HTML
+          highlightedCode = `<pre><code>${this.escapeHtml(content)}</code></pre>`;
         }
-      ] : []
-    });
+      }
 
-    return this.buildHTMLTemplate({
-      title: `ShowMe: ${filename}`,
-      filename,
-      filepath,
-      fileSize: this.formatFileSize(fileSize),
-      lastModified: lastModified.toLocaleString(),
-      content: highlightedCode,
-      styles: this.getFileViewStyles(),
-      scripts: lineHighlight ? this.getScrollScript() : ''
-    });
+      const result = this.buildHTMLTemplate({
+        title: `ShowMe: ${filename}`,
+        filename,
+        filepath,
+        fileSize: this.formatFileSize(fileSize),
+        lastModified: lastModified.toLocaleString(),
+        content: highlightedCode,
+        styles: this.getFileViewStyles(),
+        scripts: lineHighlight ? this.getScrollScript() : ''
+      });
+
+      const duration = performance.now() - startTime;
+      this.logger.info('Generated file view', {
+        filename,
+        language,
+        duration,
+        contentLength: result.length
+      });
+
+      return result;
+    } catch (error) {
+      const duration = performance.now() - startTime;
+      this.logger.error('Failed to generate file view', {
+        filename,
+        language,
+        duration,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 
   private async generateMarkdownView(options: FileViewOptions): Promise<string> {
-    const { marked } = await import('marked');
-    
-    // Simple markdown processing without complex syntax highlighting for now
-    // This avoids API compatibility issues with marked
-    const htmlContent = marked(options.content);
+    try {
+      const { marked } = await import('marked');
+      
+      // Simple markdown processing without complex syntax highlighting for now
+      // This avoids API compatibility issues with marked
+      const htmlContent = marked(options.content);
 
-    return this.buildHTMLTemplate({
-      title: `ShowMe: ${options.filename}`,
-      filename: options.filename,
-      filepath: options.filepath,
-      fileSize: this.formatFileSize(options.fileSize),
-      lastModified: options.lastModified.toLocaleString(),
-      content: `<div class="markdown-content">${htmlContent}</div>`,
-      styles: this.getMarkdownStyles(),
-      scripts: options.lineHighlight ? this.getScrollScript() : ''
-    });
+      return this.buildHTMLTemplate({
+        title: `ShowMe: ${options.filename}`,
+        filename: options.filename,
+        filepath: options.filepath,
+        fileSize: this.formatFileSize(options.fileSize),
+        lastModified: options.lastModified.toLocaleString(),
+        content: `<div class="markdown-content">${htmlContent}</div>`,
+        styles: this.getMarkdownStyles(),
+        scripts: options.lineHighlight ? this.getScrollScript() : ''
+      });
+    } catch (error) {
+      this.logger.error('Markdown processing failed', {
+        filename: options.filename,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      // Fallback to plain text
+      return this.buildHTMLTemplate({
+        title: `ShowMe: ${options.filename}`,
+        filename: options.filename,
+        filepath: options.filepath,
+        fileSize: this.formatFileSize(options.fileSize),
+        lastModified: options.lastModified.toLocaleString(),
+        content: `<div class="markdown-content"><pre>${this.escapeHtml(options.content)}</pre></div>`,
+        styles: this.getMarkdownStyles(),
+        scripts: options.lineHighlight ? this.getScrollScript() : ''
+      });
+    }
+  }
+
+  private escapeHtml(content: string): string {
+    return content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private buildHTMLTemplate(params: {
