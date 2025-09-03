@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { HTTPServer } from "./server/http-server.js";
 import { ShowFileHandler } from "./handlers/show-file-handler.js";
+import { ShowDiffHandler } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
 
 const ShowFileArgsSchema = z.object({
@@ -20,6 +21,7 @@ export function createServer(): McpServer {
   const logger = new ConsoleLogger();
   const httpServer = new HTTPServer(3847, logger);
   const showFileHandler = new ShowFileHandler(httpServer, logger);
+  const showDiffHandler = new ShowDiffHandler(httpServer, logger);
   
   const server = new McpServer(
     {
@@ -59,16 +61,7 @@ export function createServer(): McpServer {
     "Display git diff in browser with rich visualization",
     ShowDiffArgsSchema.shape,
     async (args) => {
-      // Tool handler implementation
-      const filesText = args.files ? ` for files: ${args.files.join(', ')}` : '';
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Git diff display not yet implemented${filesText}`
-          }
-        ]
-      };
+      return await showDiffHandler.handleDiffRequest(args);
     }
   );
   
