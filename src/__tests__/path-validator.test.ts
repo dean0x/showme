@@ -62,4 +62,43 @@ describe('PathValidator', () => {
       }
     });
   });
+
+  it('should validate file access when checkAccess is true', async () => {
+    const validator = new PathValidator();
+    
+    // Test with this test file which should exist
+    const result = await validator.validatePathAsync('src/__tests__/path-validator.test.ts', { checkAccess: true });
+    expect(result.ok).toBe(true);
+    
+    // Test with non-existent file
+    const nonExistentResult = await validator.validatePathAsync('non-existent-file.txt', { checkAccess: true });
+    expect(nonExistentResult.ok).toBe(false);
+    if (!nonExistentResult.ok) {
+      expect(nonExistentResult.error.code).toBe('FILE_NOT_ACCESSIBLE');
+    }
+  });
+
+  it('should validate multiple paths atomically', () => {
+    const validator = new PathValidator();
+    
+    const validPaths = ['src/index.ts', 'package.json'];
+    const result = validator.validateMultiplePaths(validPaths);
+    
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toHaveLength(2);
+    }
+  });
+
+  it('should fail early on multiple paths with one invalid', () => {
+    const validator = new PathValidator();
+    
+    const mixedPaths = ['src/index.ts', '../../../etc/passwd', 'package.json'];
+    const result = validator.validateMultiplePaths(mixedPaths);
+    
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('DIRECTORY_TRAVERSAL');
+    }
+  });
 });

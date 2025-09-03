@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import path from 'path';
+import fs from 'fs/promises';
 
 export type Result<T, E = Error> = 
   | { ok: true; value: T }
@@ -95,5 +96,46 @@ export class PathValidator {
         )
       };
     }
+  }
+
+  async validatePathAsync(
+    inputPath: string, 
+    options: { checkAccess?: boolean } = {}
+  ): Promise<Result<string, PathValidationError>> {
+    const result = this.validatePath(inputPath);
+    
+    if (!result.ok) {
+      return result;
+    }
+
+    if (options.checkAccess) {
+      try {
+        await fs.access(result.value, fs.constants.R_OK);
+      } catch {
+        return {
+          ok: false,
+          error: new PathValidationError(
+            `File not accessible: ${inputPath}`,
+            'FILE_NOT_ACCESSIBLE'
+          )
+        };
+      }
+    }
+
+    return result;
+  }
+
+  validateMultiplePaths(inputPaths: string[]): Result<string[], PathValidationError> {
+    const validatedPaths: string[] = [];
+    
+    for (const inputPath of inputPaths) {
+      const result = this.validatePath(inputPath);
+      if (!result.ok) {
+        return result;
+      }
+      validatedPaths.push(result.value);
+    }
+    
+    return { ok: true, value: validatedPaths };
   }
 }
