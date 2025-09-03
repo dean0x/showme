@@ -1,6 +1,6 @@
-import { HTTPServer, type HTMLServeResult } from '../server/http-server.js';
+import { HTTPServer } from '../server/http-server.js';
 import { PathValidator } from '../utils/path-validator.js';
-import { FileManager } from '../utils/file-manager.js';
+import { FileManager, type FileContent } from '../utils/file-manager.js';
 import { HTMLGenerator } from '../utils/html-generator.js';
 import { pipe, map } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
@@ -118,7 +118,7 @@ export class ShowFileHandler {
     path: string;
     validatedPath: string;
     content: string;
-    fileContent: any;
+    fileContent: FileContent;
     line_highlight?: number;
   }, ShowFileError>> {
     const readResult = await this.fileManager.readFile(data.validatedPath);
@@ -150,7 +150,7 @@ export class ShowFileHandler {
     path: string;
     validatedPath: string;
     content: string;
-    fileContent: any;
+    fileContent: FileContent;
     line_highlight?: number;
   }): Promise<Result<{
     path: string;

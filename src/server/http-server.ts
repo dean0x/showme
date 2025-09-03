@@ -1,5 +1,7 @@
-import { createServer, type Server } from 'http';
+import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http';
 import { randomBytes } from 'crypto';
+import { URL } from 'url';
+import { setInterval, clearInterval } from 'timers';
 import { type Result } from '../utils/path-validator.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 
@@ -51,7 +53,7 @@ interface TempFile {
 export class HTTPServer {
   private server?: Server;
   private tempFiles = new Map<string, TempFile>();
-  private cleanupInterval?: NodeJS.Timeout;
+  private cleanupInterval?: ReturnType<typeof setInterval>;
   
   constructor(
     private readonly port: number,
@@ -148,8 +150,8 @@ export class HTTPServer {
   /**
    * Handle HTTP requests
    */
-  private handleRequest(req: any, res: any): void {
-    const url = new URL(req.url, `http://localhost:${this.port}`);
+  private handleRequest(req: IncomingMessage, res: ServerResponse): void {
+    const url = new URL(req.url || '/', `http://localhost:${this.port}`);
     
     if (url.pathname.startsWith('/file/')) {
       const fileId = url.pathname.split('/file/')[1];

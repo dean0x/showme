@@ -1,7 +1,8 @@
 import { HTTPServer } from '../server/http-server.js';
-import { GitDetector } from '../utils/git-detector.js';
-import { GitDiffGenerator } from '../utils/git-diff-generator.js';
-import { GitDiffVisualizer } from '../utils/git-diff-visualizer.js';
+import { GitDetector, type GitRepository } from '../utils/git-detector.js';
+import { GitDiffGenerator, type DiffResult, GitDiffError } from '../utils/git-diff-generator.js';
+import { GitDiffVisualizer, type DiffVisualizationResult, GitDiffVisualizationError } from '../utils/git-diff-visualizer.js';
+import { GitDetectionError } from '../utils/git-detector.js';
 import { pipe, map } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
@@ -94,7 +95,7 @@ export class ShowDiffHandler {
     base?: string;
     target?: string;
     files?: string[];
-    repository: any;
+    repository: GitRepository;
   }, ShowDiffError>> {
     const detectionResult = await this.gitDetector.detectRepository(args.workingPath);
 
@@ -128,16 +129,16 @@ export class ShowDiffHandler {
     base?: string;
     target?: string;
     files?: string[];
-    repository: any;
+    repository: GitRepository;
   }): Promise<Result<{
     workingPath: string;
     base?: string;
     target?: string;
     files?: string[];
-    repository: any;
-    diffResult: any;
+    repository: GitRepository;
+    diffResult: DiffResult;
   }, ShowDiffError>> {
-    let diffResult: any;
+    let diffResult: Result<DiffResult, GitDiffError | GitDetectionError>;
 
     try {
       if (data.base && data.target) {
@@ -198,17 +199,17 @@ export class ShowDiffHandler {
     base?: string;
     target?: string;
     files?: string[];
-    repository: any;
-    diffResult: any;
+    repository: GitRepository;
+    diffResult: DiffResult;
   }): Promise<Result<{
     workingPath: string;
     base?: string;
     target?: string;
     files?: string[];
     htmlContent: string;
-    statistics: any;
+    statistics: DiffResult['stats'];
   }, ShowDiffError>> {
-    let visualizationResult: any;
+    let visualizationResult: Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>;
 
     try {
       if (data.base && data.target) {
@@ -271,14 +272,14 @@ export class ShowDiffHandler {
     target?: string;
     files?: string[];
     htmlContent: string;
-    statistics: any;
+    statistics: DiffResult['stats'];
   }): Promise<Result<{
     workingPath: string;
     base?: string;
     target?: string;
     files?: string[];
     url: string;
-    statistics: any;
+    statistics: DiffResult['stats'];
   }, ShowDiffError>> {
     const filename = 'diff.html';
     const serveResult = await this.httpServer.serveHTML(data.htmlContent, filename);
@@ -315,7 +316,7 @@ export class ShowDiffHandler {
     target?: string;
     files?: string[];
     url: string;
-    statistics: any;
+    statistics: DiffResult['stats'];
   }): MCPResponse {
     const stats = data.statistics;
     const filesText = data.files && data.files.length > 0 

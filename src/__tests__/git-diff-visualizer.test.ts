@@ -11,6 +11,7 @@ import type { Logger } from '../utils/logger.js';
 
 // Mock diff2html
 vi.mock('diff2html', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   html: vi.fn((_diffText: string, _options?: unknown) => {
     // Mock HTML output that resembles diff2html structure
     return `<div class="d2h-wrapper">
