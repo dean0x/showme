@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ThemeSystem, type DesignTokens } from '../utils/theme-system.js';
+import { ThemeSystem } from '../utils/theme-system.js';
 
 describe('ThemeSystem', () => {
   it('should export all required design tokens', () => {
