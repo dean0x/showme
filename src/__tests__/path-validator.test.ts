@@ -36,4 +36,15 @@ describe('PathValidator', () => {
       expect(result.error.code).toBe('OUTSIDE_WORKSPACE');
     }
   });
+
+  it('should reject path containing null bytes', () => {
+    const validator = new PathValidator();
+    const result = validator.validatePath('src/file\0.txt');
+    
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('NULL_BYTE_ATTACK');
+      expect(result.error.message).toContain('null byte');
+    }
+  });
 });

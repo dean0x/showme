@@ -21,6 +21,17 @@ export class PathValidator {
 
   validatePath(inputPath: string): Result<string, PathValidationError> {
     try {
+      // Check for null byte attack
+      if (inputPath.includes('\0')) {
+        return {
+          ok: false,
+          error: new PathValidationError(
+            `Path contains null byte attack: ${inputPath.replace(/\0/g, '\\0')}`,
+            'NULL_BYTE_ATTACK'
+          )
+        };
+      }
+
       const resolved = path.resolve(this.workspaceRoot, inputPath);
       
       // Ensure resolved path is within workspace boundaries
