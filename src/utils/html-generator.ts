@@ -1,6 +1,7 @@
 import { createHighlighter, type Highlighter, type BundledLanguage } from 'shiki';
 import { ThemeSystem } from './theme-system.js';
 import { type Logger, ConsoleLogger } from './logger.js';
+import { type Result } from './path-validator.js';
 
 declare const performance: {
   now(): number;
@@ -16,13 +17,26 @@ export interface FileViewOptions {
   lastModified: Date;
 }
 
+/**
+ * HTML Generator errors
+ */
+export class HTMLGeneratorError extends Error {
+  code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.code = code;
+    this.name = 'HTMLGeneratorError';
+  }
+}
+
 export class HTMLGenerator {
   constructor(
     private readonly highlighter: Highlighter | null = null,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
 
-  static async create(logger?: Logger): Promise<HTMLGenerator> {
+  static async create(logger?: Logger): Promise<Result<HTMLGenerator, HTMLGeneratorError>> {
     const actualLogger = logger || new ConsoleLogger();
     const startTime = performance.now();
     
@@ -46,14 +60,24 @@ export class HTMLGenerator {
         themes: highlighter.getLoadedThemes().length
       });
 
-      return new HTMLGenerator(highlighter, actualLogger);
+      return {
+        ok: true,
+        value: new HTMLGenerator(highlighter, actualLogger)
+      };
     } catch (error) {
       const duration = performance.now() - startTime;
       actualLogger.error('Failed to initialize Shiki highlighter', {
         duration,
         error: error instanceof Error ? error.message : String(error)
       });
-      throw error;
+      
+      return {
+        ok: false,
+        error: new HTMLGeneratorError(
+          `Failed to initialize Shiki highlighter: ${error instanceof Error ? error.message : String(error)}`,
+          'HIGHLIGHTER_INIT_ERROR'
+        )
+      };
     }
   }
 
@@ -70,7 +94,7 @@ export class HTMLGenerator {
     }
   }
 
-  async generateFileView(options: FileViewOptions): Promise<string> {
+  async generateFileView(options: FileViewOptions): Promise<Result<string, HTMLGeneratorError>> {
     const startTime = performance.now();
     const {
       filename,
@@ -94,6 +118,10 @@ export class HTMLGenerator {
       if (language === 'markdown') {
         const result = await this.generateMarkdownView(options);
         const duration = performance.now() - startTime;
+        
+        if (!result.ok) {
+          return result;
+        }
         
         this.logger.info('Generated file view', {
           filename,
@@ -161,7 +189,10 @@ export class HTMLGenerator {
         contentLength: result.length
       });
 
-      return result;
+      return {
+        ok: true,
+        value: result
+      };
     } catch (error) {
       const duration = performance.now() - startTime;
       this.logger.error('Failed to generate file view', {
@@ -170,11 +201,18 @@ export class HTMLGenerator {
         duration,
         error: error instanceof Error ? error.message : String(error)
       });
-      throw error;
+      
+      return {
+        ok: false,
+        error: new HTMLGeneratorError(
+          `Failed to generate file view: ${error instanceof Error ? error.message : String(error)}`,
+          'GENERATION_ERROR'
+        )
+      };
     }
   }
 
-  private async generateMarkdownView(options: FileViewOptions): Promise<string> {
+  private async generateMarkdownView(options: FileViewOptions): Promise<Result<string, HTMLGeneratorError>> {
     try {
       const { marked } = await import('marked');
       
@@ -182,7 +220,7 @@ export class HTMLGenerator {
       // This avoids API compatibility issues with marked
       const htmlContent = marked(options.content);
 
-      return this.buildHTMLTemplate({
+      const result = this.buildHTMLTemplate({
         title: `ShowMe: ${options.filename}`,
         filename: options.filename,
         filepath: options.filepath,
@@ -192,6 +230,11 @@ export class HTMLGenerator {
         styles: this.getMarkdownStyles(),
         scripts: options.lineHighlight ? this.getScrollScript() : ''
       });
+
+      return {
+        ok: true,
+        value: result
+      };
     } catch (error) {
       this.logger.error('Markdown processing failed', {
         filename: options.filename,
@@ -199,7 +242,7 @@ export class HTMLGenerator {
       });
       
       // Fallback to plain text
-      return this.buildHTMLTemplate({
+      const fallbackResult = this.buildHTMLTemplate({
         title: `ShowMe: ${options.filename}`,
         filename: options.filename,
         filepath: options.filepath,
@@ -209,6 +252,11 @@ export class HTMLGenerator {
         styles: this.getMarkdownStyles(),
         scripts: options.lineHighlight ? this.getScrollScript() : ''
       });
+
+      return {
+        ok: true,
+        value: fallbackResult
+      };
     }
   }
 

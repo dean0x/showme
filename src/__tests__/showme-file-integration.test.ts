@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ShowFileHandler } from '../handlers/show-file-handler.js';
 import { HTTPServer } from '../server/http-server.js';
 import { type Logger } from '../utils/logger.js';
+import { getAvailablePort } from './test-utils.js';
 
 describe('ShowFile Integration', () => {
   let mockLogger: Logger;
@@ -16,7 +17,8 @@ describe('ShowFile Integration', () => {
       debug: vi.fn(),
     };
 
-    httpServer = new HTTPServer(3860, mockLogger);
+    const port = await getAvailablePort();
+    httpServer = new HTTPServer(port, mockLogger);
     const startResult = await httpServer.start();
     expect(startResult.ok).toBe(true);
 

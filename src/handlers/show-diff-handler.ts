@@ -35,6 +35,7 @@ export interface ShowDiffRequest {
  * MCP response format
  */
 export interface MCPResponse {
+  [key: string]: unknown;
   content: Array<{
     type: 'text';
     text: string;
@@ -109,15 +110,24 @@ export class ShowDiffHandler {
       };
     }
 
+    const result: {
+      workingPath: string;
+      base?: string;
+      target?: string;
+      files?: string[];
+      repository: GitRepository;
+    } = {
+      workingPath: args.workingPath,
+      repository: detectionResult.value
+    };
+    
+    if (args.base !== undefined) result.base = args.base;
+    if (args.target !== undefined) result.target = args.target;
+    if (args.files !== undefined) result.files = args.files;
+
     return {
       ok: true,
-      value: {
-        workingPath: args.workingPath,
-        base: args.base,
-        target: args.target,
-        files: args.files,
-        repository: detectionResult.value
-      }
+      value: result
     };
   }
 
@@ -241,16 +251,26 @@ export class ShowDiffHandler {
         };
       }
 
+      const result: {
+        workingPath: string;
+        base?: string;
+        target?: string;
+        files?: string[];
+        htmlContent: string;
+        statistics: DiffResult['stats'];
+      } = {
+        workingPath: data.workingPath,
+        htmlContent: visualizationResult.value.html,
+        statistics: visualizationResult.value.diffResult.stats
+      };
+      
+      if (data.base !== undefined) result.base = data.base;
+      if (data.target !== undefined) result.target = data.target;
+      if (data.files !== undefined) result.files = data.files;
+
       return {
         ok: true,
-        value: {
-          workingPath: data.workingPath,
-          base: data.base,
-          target: data.target,
-          files: data.files,
-          htmlContent: visualizationResult.value.html,
-          statistics: visualizationResult.value.diffResult.stats
-        }
+        value: result
       };
     } catch (error) {
       return {
@@ -294,16 +314,26 @@ export class ShowDiffHandler {
       };
     }
 
+    const result: {
+      workingPath: string;
+      base?: string;
+      target?: string;
+      files?: string[];
+      url: string;
+      statistics: DiffResult['stats'];
+    } = {
+      workingPath: data.workingPath,
+      url: serveResult.value.url,
+      statistics: data.statistics
+    };
+    
+    if (data.base !== undefined) result.base = data.base;
+    if (data.target !== undefined) result.target = data.target;
+    if (data.files !== undefined) result.files = data.files;
+
     return {
       ok: true,
-      value: {
-        workingPath: data.workingPath,
-        base: data.base,
-        target: data.target,
-        files: data.files,
-        url: serveResult.value.url,
-        statistics: data.statistics
-      }
+      value: result
     };
   }
 
@@ -325,8 +355,8 @@ export class ShowDiffHandler {
         ? ` (${stats.filesChanged} files)`
         : '';
     
-    const changesText = stats.insertions + stats.deletions > 0
-      ? ` +${stats.insertions}/-${stats.deletions}`
+    const changesText = stats.additions + stats.deletions > 0
+      ? ` +${stats.additions}/-${stats.deletions}`
       : '';
 
     const compareText = data.base && data.target 

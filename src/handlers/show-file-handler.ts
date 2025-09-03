@@ -33,6 +33,7 @@ export interface ShowFileRequest {
  * MCP response format
  */
 export interface MCPResponse {
+  [key: string]: unknown;
   content: Array<{
     type: 'text';
     text: string;
@@ -54,7 +55,7 @@ export class ShowFileHandler {
   ) {
     this.pathValidator = new PathValidator();
     this.fileManager = new FileManager(this.pathValidator, this.logger);
-    this.htmlGenerator = new HTMLGenerator(this.logger);
+    this.htmlGenerator = new HTMLGenerator(null, this.logger); // No highlighter for basic usage
   }
 
   /**
@@ -101,13 +102,16 @@ export class ShowFileHandler {
       };
     }
 
+    const result: { path: string; validatedPath: string; line_highlight?: number } = {
+      path: args.path,
+      validatedPath: validationResult.value
+    };
+    
+    if (args.line_highlight !== undefined) result.line_highlight = args.line_highlight;
+
     return {
       ok: true,
-      value: {
-        path: args.path,
-        validatedPath: validationResult.value,
-        line_highlight: args.line_highlight
-      }
+      value: result
     };
   }
 
@@ -167,26 +171,29 @@ export class ShowFileHandler {
       ...(data.line_highlight && { lineHighlight: data.line_highlight })
     };
 
-    try {
-      const htmlContent = await this.htmlGenerator.generateFileView(options);
+    const htmlResult = await this.htmlGenerator.generateFileView(options);
 
-      return {
-        ok: true,
-        value: {
-          path: data.path,
-          htmlContent,
-          line_highlight: data.line_highlight
-        }
-      };
-    } catch (error) {
+    if (!htmlResult.ok) {
       return {
         ok: false,
         error: new ShowFileError(
-          `HTML generation failed: ${error instanceof Error ? error.message : String(error)}`,
-          'HTML_GENERATION_ERROR'
+          `HTML generation failed: ${htmlResult.error.message}`,
+          htmlResult.error.code
         )
       };
     }
+
+    const result: { path: string; htmlContent: string; line_highlight?: number } = {
+      path: data.path,
+      htmlContent: htmlResult.value
+    };
+    
+    if (data.line_highlight !== undefined) result.line_highlight = data.line_highlight;
+
+    return {
+      ok: true,
+      value: result
+    };
   }
 
   /**
@@ -214,13 +221,16 @@ export class ShowFileHandler {
       };
     }
 
+    const result: { path: string; url: string; line_highlight?: number } = {
+      path: data.path,
+      url: serveResult.value.url
+    };
+    
+    if (data.line_highlight !== undefined) result.line_highlight = data.line_highlight;
+
     return {
       ok: true,
-      value: {
-        path: data.path,
-        url: serveResult.value.url,
-        line_highlight: data.line_highlight
-      }
+      value: result
     };
   }
 

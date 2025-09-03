@@ -13,7 +13,19 @@ export async function displayFile(filePath: string, options?: {
 }): Promise<Result<string, FileManagerError | PathValidationError>> {
   const logger = new ConsoleLogger();
   const fileManager = FileManager.create();
-  const htmlGenerator = await HTMLGenerator.create(logger);
+  const htmlGeneratorResult = await HTMLGenerator.create(logger);
+  
+  if (!htmlGeneratorResult.ok) {
+    return {
+      ok: false,
+      error: new FileManagerError(
+        `HTML generator initialization failed: ${htmlGeneratorResult.error.message}`,
+        htmlGeneratorResult.error.code
+      )
+    };
+  }
+  
+  const htmlGenerator = htmlGeneratorResult.value;
   
   // Define pipeline steps
   const readFile = (path: string): ReturnType<typeof fileManager.readFile> => fileManager.readFile(path);
@@ -27,22 +39,24 @@ export async function displayFile(filePath: string, options?: {
   );
   
   const generateHTML = async (content: FileContent): Promise<Result<string, Error>> => {
-    try {
-      const viewOptions = {
-        ...content,
-        ...(options?.lineHighlight ? { lineHighlight: options.lineHighlight } : {})
-      };
-      const html = await htmlGenerator.generateFileView(viewOptions);
-      return { ok: true, value: html };
-    } catch (error) {
+    const viewOptions = {
+      ...content,
+      ...(options?.lineHighlight ? { lineHighlight: options.lineHighlight } : {})
+    };
+    
+    const htmlResult = await htmlGenerator.generateFileView(viewOptions);
+    
+    if (!htmlResult.ok) {
       return {
         ok: false,
         error: new FileManagerError(
-          `Failed to generate HTML: ${error instanceof Error ? error.message : String(error)}`,
-          'HTML_GENERATION_ERROR'
+          `Failed to generate HTML: ${htmlResult.error.message}`,
+          htmlResult.error.code
         )
       };
     }
+    
+    return { ok: true, value: htmlResult.value };
   };
   
   const logHTMLGenerated = tap<string>((html) =>
@@ -70,16 +84,33 @@ export async function displayFile(filePath: string, options?: {
 /**
  * Legacy compatibility - create instances manually for advanced usage
  */
-export async function createDisplayComponents(): Promise<{
+export async function createDisplayComponents(): Promise<Result<{
   fileManager: FileManager;
   htmlGenerator: HTMLGenerator;
   logger: Logger;
-}> {
+}, FileManagerError>> {
   const logger = new ConsoleLogger();
   const fileManager = FileManager.create();
-  const htmlGenerator = await HTMLGenerator.create(logger);
+  const htmlGeneratorResult = await HTMLGenerator.create(logger);
   
-  return { fileManager, htmlGenerator, logger };
+  if (!htmlGeneratorResult.ok) {
+    return {
+      ok: false,
+      error: new FileManagerError(
+        `HTML generator initialization failed: ${htmlGeneratorResult.error.message}`,
+        htmlGeneratorResult.error.code
+      )
+    };
+  }
+  
+  return {
+    ok: true,
+    value: {
+      fileManager,
+      htmlGenerator: htmlGeneratorResult.value,
+      logger
+    }
+  };
 }
 
 /**

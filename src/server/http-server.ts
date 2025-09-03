@@ -53,7 +53,7 @@ interface TempFile {
 export class HTTPServer {
   private server?: Server;
   private tempFiles = new Map<string, TempFile>();
-  private cleanupInterval?: ReturnType<typeof setInterval>;
+  private cleanupInterval: ReturnType<typeof setInterval> | undefined = undefined;
   
   constructor(
     private readonly port: number,
@@ -207,7 +207,7 @@ export class HTTPServer {
    * Resource cleanup following engineering principle #7
    */
   async dispose(): Promise<void> {
-    if (this.cleanupInterval) {
+    if (this.cleanupInterval !== undefined) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }

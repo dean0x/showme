@@ -2,9 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { HTTPServer } from "./server/http-server.js";
-import { ShowFileHandler } from "./handlers/show-file-handler.js";
-import { ShowDiffHandler } from "./handlers/show-diff-handler.js";
+import { ShowFileHandler, type ShowFileRequest } from "./handlers/show-file-handler.js";
+import { ShowDiffHandler, type ShowDiffRequest } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
+import { ResourceManager } from "./utils/resource-manager.js";
 
 const ShowFileArgsSchema = z.object({
   path: z.string().describe("File path relative to workspace"),
@@ -17,9 +18,13 @@ const ShowDiffArgsSchema = z.object({
   files: z.array(z.string()).optional().describe("Specific files to include in diff"),
 });
 
+// Global resource manager for application lifecycle
+export const resourceManager = new ResourceManager(new ConsoleLogger());
+
 export function createServer(): McpServer {
   const logger = new ConsoleLogger();
-  const httpServer = new HTTPServer(3847, logger);
+  const port = parseInt(process.env.SHOWME_HTTP_PORT || '0') || 3847; // 0 = dynamic port for tests
+  const httpServer = resourceManager.register(new HTTPServer(port, logger));
   const showFileHandler = new ShowFileHandler(httpServer, logger);
   const showDiffHandler = new ShowDiffHandler(httpServer, logger);
   
@@ -51,7 +56,9 @@ export function createServer(): McpServer {
     "Display a file in browser with syntax highlighting", 
     ShowFileArgsSchema.shape,
     async (args) => {
-      return await showFileHandler.handleFileRequest(args);
+      const request: ShowFileRequest = { path: args.path };
+      if (args.line_highlight !== undefined) request.line_highlight = args.line_highlight;
+      return await showFileHandler.handleFileRequest(request);
     }
   );
   
@@ -61,7 +68,11 @@ export function createServer(): McpServer {
     "Display git diff in browser with rich visualization",
     ShowDiffArgsSchema.shape,
     async (args) => {
-      return await showDiffHandler.handleDiffRequest(args);
+      const request: ShowDiffRequest = {};
+      if (args.base !== undefined) request.base = args.base;
+      if (args.target !== undefined) request.target = args.target;
+      if (args.files !== undefined) request.files = args.files;
+      return await showDiffHandler.handleDiffRequest(request);
     }
   );
   
@@ -75,14 +86,35 @@ export async function startServer(): Promise<void> {
   await server.connect(transport);
 }
 
+// Graceful shutdown handler
+async function gracefulShutdown(): Promise<void> {
+  console.log('\nReceived shutdown signal. Cleaning up...');
+  try {
+    await resourceManager.disposeAll();
+    console.log('All resources cleaned up successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    process.exit(1);
+  }
+}
+
 // Main entry point for CLI execution
 async function main(): Promise<void> {
   try {
+    // Register shutdown handlers
+    process.on('SIGINT', gracefulShutdown);
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('uncaughtException', async (error) => {
+      console.error('Uncaught exception:', error);
+      await gracefulShutdown();
+    });
+
     await startServer();
     console.log("ShowMe MCP server running...");
   } catch (error) {
     console.error("Server error:", error);
-    process.exit(1);
+    await gracefulShutdown();
   }
 }
 

@@ -92,4 +92,68 @@ describe('ResourceManager', () => {
       expect(resourceManager.getActiveResources()).toBe(0);
     });
   });
+
+  describe('integration with existing components', () => {
+    it('should integrate with HTTPServer lifecycle', async () => {
+      const { HTTPServer } = await import('../server/http-server.js');
+      const { getAvailablePort } = await import('./test-utils.js');
+      
+      const port = await getAvailablePort();
+      const httpServer = new HTTPServer(port);
+      
+      // Register with resource manager
+      const registeredServer = resourceManager.register(httpServer);
+      
+      // Start server
+      const startResult = await registeredServer.start();
+      expect(startResult.ok).toBe(true);
+      expect(resourceManager.getActiveResources()).toBe(1);
+      
+      // Dispose through resource manager should clean up server
+      await resourceManager.disposeAll();
+      expect(resourceManager.getActiveResources()).toBe(0);
+    });
+
+    it('should integrate with HTMLGenerator lifecycle', async () => {
+      const { HTMLGenerator } = await import('../utils/html-generator.js');
+      
+      const generatorResult = await HTMLGenerator.create();
+      expect(generatorResult.ok).toBe(true);
+      
+      if (!generatorResult.ok) return;
+      const generator = resourceManager.register(generatorResult.value);
+      
+      expect(resourceManager.getActiveResources()).toBe(1);
+      
+      // Dispose through resource manager
+      await resourceManager.disposeAll();
+      expect(resourceManager.getActiveResources()).toBe(0);
+    });
+
+    it('should handle mixed resource types', async () => {
+      const { HTTPServer } = await import('../server/http-server.js');
+      const { HTMLGenerator } = await import('../utils/html-generator.js');
+      const { getAvailablePort } = await import('./test-utils.js');
+      
+      // Register multiple different resource types
+      const port = await getAvailablePort();
+      const httpServer = resourceManager.register(new HTTPServer(port));
+      
+      const generatorResult = await HTMLGenerator.create();
+      expect(generatorResult.ok).toBe(true);
+      if (!generatorResult.ok) return;
+      
+      const htmlGenerator = resourceManager.register(generatorResult.value);
+      
+      expect(resourceManager.getActiveResources()).toBe(2);
+      
+      // Start HTTP server
+      const startResult = await httpServer.start();
+      expect(startResult.ok).toBe(true);
+      
+      // Dispose all resources
+      await resourceManager.disposeAll();
+      expect(resourceManager.getActiveResources()).toBe(0);
+    });
+  });
 });

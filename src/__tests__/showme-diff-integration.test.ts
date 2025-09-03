@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ShowDiffHandler } from '../handlers/show-diff-handler.js';
 import { HTTPServer } from '../server/http-server.js';
 import { type Logger } from '../utils/logger.js';
+import { getAvailablePort } from './test-utils.js';
 
 describe('ShowDiff Integration', () => {
   let mockLogger: Logger;
@@ -16,7 +17,8 @@ describe('ShowDiff Integration', () => {
       debug: vi.fn(),
     };
 
-    httpServer = new HTTPServer(3870, mockLogger);
+    const port = await getAvailablePort();
+    httpServer = new HTTPServer(port, mockLogger);
     const startResult = await httpServer.start();
     expect(startResult.ok).toBe(true);
 

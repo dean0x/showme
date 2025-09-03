@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HTTPServer } from '../server/http-server.js';
 import { type Logger } from '../utils/logger.js';
+import { getAvailablePort } from './test-utils.js';
 
 describe('HTTP Server', () => {
   let mockLogger: Logger;
@@ -22,19 +23,21 @@ describe('HTTP Server', () => {
   });
 
   it('should start HTTP server on specified port', async () => {
-    server = new HTTPServer(3847, mockLogger);
+    const port = await getAvailablePort();
+    server = new HTTPServer(port, mockLogger);
     
     const result = await server.start();
     
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.port).toBe(3847);
-      expect(result.value.baseUrl).toBe('http://localhost:3847');
+      expect(result.value.port).toBe(port);
+      expect(result.value.baseUrl).toBe(`http://localhost:${port}`);
     }
   });
 
   it('should serve temporary HTML files', async () => {
-    server = new HTTPServer(3848, mockLogger);
+    const port = await getAvailablePort();
+    server = new HTTPServer(port, mockLogger);
     await server.start();
     
     const htmlContent = '<html><body>Test content</body></html>';
@@ -48,7 +51,8 @@ describe('HTTP Server', () => {
   });
 
   it('should clean up temporary files after timeout', async () => {
-    server = new HTTPServer(3849, mockLogger);
+    const port = await getAvailablePort();
+    server = new HTTPServer(port, mockLogger);
     await server.start();
     
     const result = await server.serveHTML('<html>test</html>', 'temp.html');
@@ -59,8 +63,9 @@ describe('HTTP Server', () => {
   });
 
   it('should handle port conflicts gracefully', async () => {
-    const server1 = new HTTPServer(3850, mockLogger);
-    const server2 = new HTTPServer(3850, mockLogger);
+    const port = await getAvailablePort();
+    const server1 = new HTTPServer(port, mockLogger);
+    const server2 = new HTTPServer(port, mockLogger);
     
     const result1 = await server1.start();
     expect(result1.ok).toBe(true);
@@ -75,7 +80,8 @@ describe('HTTP Server', () => {
   });
 
   it('should implement resource cleanup pattern', async () => {
-    server = new HTTPServer(3851, mockLogger);
+    const port = await getAvailablePort();
+    server = new HTTPServer(port, mockLogger);
     
     expect(server.dispose).toBeDefined();
     expect(typeof server.dispose).toBe('function');
