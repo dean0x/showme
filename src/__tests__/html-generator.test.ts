@@ -69,4 +69,48 @@ const hello = "world";
     expect(html).toContain('Size: 1.0 KB');
     expect(html).toContain(testDate.toLocaleString());
   });
+
+  it('should use theme system instead of hardcoded styles', async () => {
+    const generator = new HTMLGenerator();
+    
+    const html = await generator.generateFileView({
+      filename: 'test.js',
+      filepath: '/test.js',
+      content: 'console.log("test");',
+      language: 'javascript',
+      fileSize: 100,
+      lastModified: new Date()
+    });
+
+    // Should use CSS custom properties in style rules
+    expect(html).toContain('var(--bg-primary)');
+    expect(html).toContain('var(--text-primary)');
+    expect(html).toContain('var(--space-4)');
+    // Should contain design token definitions
+    expect(html).toContain('--bg-primary: #0d1117');
+    expect(html).toContain('--text-primary: #e6edf3');
+    // Should use semantic class names from theme system
+    expect(html).toContain('file-viewer');
+    expect(html).toContain('file-header');
+    expect(html).toContain('file-content');
+  });
+
+  it('should generate semantic HTML with ARIA labels', async () => {
+    const generator = new HTMLGenerator();
+    
+    const html = await generator.generateFileView({
+      filename: 'test.js',
+      filepath: '/test.js',
+      content: 'console.log("test");',
+      language: 'javascript',
+      fileSize: 100,
+      lastModified: new Date()
+    });
+
+    // Should have semantic HTML structure
+    expect(html).toContain('<main');
+    expect(html).toContain('aria-label');
+    expect(html).toContain('<header');
+    expect(html).toContain('<section');
+  });
 });

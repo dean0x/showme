@@ -1,4 +1,5 @@
 import { createHighlighter, type Highlighter, type BundledLanguage } from 'shiki';
+import { ThemeSystem } from './theme-system.js';
 
 export interface FileViewOptions {
   filename: string;
@@ -117,17 +118,19 @@ export class HTMLGenerator {
     <style>${params.styles}</style>
 </head>
 <body>
-    <div class="container">
-        <header class="metadata">
-            <h1>${params.filename}</h1>
-            <div class="file-info">
-                <span class="path">Path: ${params.filepath}</span>
-                <span class="size">Size: ${params.fileSize}</span>
-                <span class="modified">Modified: ${params.lastModified}</span>
+    <div class="file-viewer">
+        <header class="file-header" aria-label="File information">
+            <h1 class="file-title">${params.filename}</h1>
+            <div class="file-meta" aria-label="File metadata">
+                <span aria-label="File path">Path: ${params.filepath}</span>
+                <span aria-label="File size">Size: ${params.fileSize}</span>
+                <span aria-label="Last modified date">Modified: ${params.lastModified}</span>
             </div>
         </header>
-        <main class="content">
-            ${params.content}
+        <main class="file-content" aria-label="File content">
+            <section aria-label="Code content">
+                ${params.content}
+            </section>
         </main>
     </div>
     ${params.scripts}
@@ -137,152 +140,14 @@ export class HTMLGenerator {
 
   private getFileViewStyles(): string {
     return `
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        background-color: #0d1117;
-        color: #e6edf3;
-        line-height: 1.6;
-      }
-      
-      .container {
-        max-width: 100%;
-        min-height: 100vh;
-      }
-      
-      .metadata {
-        background-color: #161b22;
-        border-bottom: 1px solid #21262d;
-        padding: 1rem 2rem;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-      }
-      
-      .metadata h1 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #f0f6fc;
-        margin-bottom: 0.5rem;
-      }
-      
-      .file-info {
-        display: flex;
-        gap: 2rem;
-        font-size: 0.875rem;
-        color: #7d8590;
-      }
-      
-      .file-info span {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-      }
-      
-      .content {
-        padding: 1rem 2rem;
-      }
-      
-      .content pre {
-        margin: 0;
-        background-color: transparent !important;
-        border-radius: 8px;
-        overflow-x: auto;
-      }
-      
-      .line-highlight {
-        background-color: #ffd60a33 !important;
-        border-left: 3px solid #ffd60a;
-        padding-left: 0.5rem !important;
-      }
-      
-      /* Responsive design */
-      @media (max-width: 768px) {
-        .metadata {
-          padding: 1rem;
-        }
-        
-        .content {
-          padding: 1rem;
-        }
-        
-        .file-info {
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-      }
+      ${ThemeSystem.generateBaseStyles()}
+      ${ThemeSystem.generateFileViewerStyles()}
     `;
   }
 
   private getMarkdownStyles(): string {
     return `
       ${this.getFileViewStyles()}
-      
-      .markdown-content {
-        max-width: 80ch;
-        margin: 0 auto;
-      }
-      
-      .markdown-content h1,
-      .markdown-content h2,
-      .markdown-content h3,
-      .markdown-content h4,
-      .markdown-content h5,
-      .markdown-content h6 {
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        color: #f0f6fc;
-      }
-      
-      .markdown-content h1 {
-        font-size: 2rem;
-        border-bottom: 1px solid #21262d;
-        padding-bottom: 0.5rem;
-      }
-      
-      .markdown-content h2 {
-        font-size: 1.5rem;
-        border-bottom: 1px solid #21262d;
-        padding-bottom: 0.25rem;
-      }
-      
-      .markdown-content p {
-        margin-bottom: 1rem;
-      }
-      
-      .markdown-content ul,
-      .markdown-content ol {
-        margin-bottom: 1rem;
-        padding-left: 2rem;
-      }
-      
-      .markdown-content blockquote {
-        border-left: 4px solid #30363d;
-        padding-left: 1rem;
-        margin: 1rem 0;
-        color: #7d8590;
-      }
-      
-      .markdown-content code {
-        background-color: #282c34;
-        padding: 0.125rem 0.25rem;
-        border-radius: 4px;
-        font-size: 0.875rem;
-      }
-      
-      .markdown-content pre {
-        background-color: #0d1117 !important;
-        border: 1px solid #21262d;
-        border-radius: 8px;
-        padding: 1rem;
-        overflow-x: auto;
-        margin: 1rem 0;
-      }
     `;
   }
 
