@@ -47,4 +47,19 @@ describe('PathValidator', () => {
       expect(result.error.message).toContain('null byte');
     }
   });
+
+  it('should reject Windows device names (CVE-2025-27210)', () => {
+    const validator = new PathValidator();
+    
+    const deviceNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'LPT1'];
+    
+    deviceNames.forEach(deviceName => {
+      const result = validator.validatePath(`${deviceName}.txt`);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('WINDOWS_DEVICE_NAME');
+        expect(result.error.message).toContain('Windows device name');
+      }
+    });
+  });
 });
