@@ -96,7 +96,7 @@ body {
 
 .code-with-lines {
   margin: 0;
-  padding: var(--space-4);
+  padding: 0 var(--space-4);
   background-color: var(--bg-primary);
   font-family: var(--font-mono);
   font-size: 0.875rem;
@@ -148,35 +148,6 @@ body {
   display: block;
 }
 
-/* Copy Button */
-.copy-button {
-  position: fixed;
-  top: var(--space-4);
-  right: var(--space-4);
-  background-color: var(--bg-overlay);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-family: var(--font-system);
-  transition: all 0.15s ease;
-  z-index: 20;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.copy-button:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--accent-blue);
-  transform: translateY(-1px);
-}
-
-.copy-button.copy-success {
-  background-color: var(--accent-green);
-  color: white;
-  border-color: var(--accent-green);
-}
 
 /* Search Overlay */
 .search-overlay {
@@ -293,11 +264,6 @@ body {
     align-items: flex-start;
   }
   
-  .copy-button {
-    position: static;
-    margin: var(--space-4);
-    align-self: flex-start;
-  }
   
   .search-container {
     min-width: 300px;

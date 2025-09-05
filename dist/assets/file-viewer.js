@@ -21,43 +21,11 @@
     });
 
     function initializeFileViewer() {
-        setupCopyButton();
         setupLineNumbers();
         setupSearch();
         handleLineHighlight();
     }
 
-    function setupCopyButton() {
-        const copyButton = document.querySelector('.copy-button');
-        if (!copyButton) return;
-
-        copyButton.addEventListener('click', async function() {
-            try {
-                // Get content from DOM - safe approach
-                const content = fileData.rawContent || 
-                               document.querySelector('pre code')?.textContent || 
-                               document.querySelector('pre')?.textContent || '';
-
-                await navigator.clipboard.writeText(content);
-                
-                // Visual feedback
-                copyButton.innerHTML = '✅ Copied!';
-                copyButton.classList.add('copy-success');
-                
-                setTimeout(() => {
-                    copyButton.innerHTML = '📋 Copy';
-                    copyButton.classList.remove('copy-success');
-                }, 2000);
-
-            } catch (error) {
-                console.warn('Copy failed:', error);
-                copyButton.innerHTML = '❌ Failed';
-                setTimeout(() => {
-                    copyButton.innerHTML = '📋 Copy';
-                }, 2000);
-            }
-        });
-    }
 
     function setupLineNumbers() {
         const codeBlock = document.querySelector('.code-with-lines');
