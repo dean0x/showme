@@ -12,12 +12,13 @@ export declare class GitDiffError extends Error {
 /**
  * Git diff types
  */
-export type DiffType = 'staged' | 'unstaged' | 'commit' | 'branch';
+export type DiffType = 'staged' | 'unstaged' | 'commit' | 'commit-range' | 'branch';
 /**
  * Diff options
  */
 export interface DiffOptions {
     type: DiffType;
+    base?: string;
     target?: string;
     paths?: string[];
     contextLines?: number;
@@ -92,9 +93,17 @@ export declare class GitDiffGenerator {
      */
     private buildDiffCommand;
     /**
-     * Parse git diff output into structured format
+     * Execute git diff command for statistics only
      */
-    private parseDiff;
+    private executeStats;
+    /**
+     * Build git diff command for statistics only
+     */
+    private buildStatsCommand;
+    /**
+     * Parse git diff statistics into structured format
+     */
+    private parseStats;
     /**
      * Get staged diff (files added to index)
      */

@@ -41,6 +41,10 @@ export declare class HTTPServer {
      * Handle HTTP requests
      */
     private handleRequest;
+    private handleFileRequest;
+    private handleAssetRequest;
+    private handleHealthRequest;
+    private handleNotFound;
     /**
      * Start cleanup process for old temp files
      */

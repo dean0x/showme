@@ -4,7 +4,7 @@ import { type Logger, ConsoleLogger } from './logger.js';
 import { type Result } from './path-validator.js';
 import { HTMLGenerationError, ErrorFactory } from './error-handling.js';
 import { performanceMonitor } from './performance-monitor.js';
-
+import { TemplateEngine, type TemplateData } from './template-engine.js';
 
 export interface FileViewOptions {
   filename: string;
@@ -48,105 +48,12 @@ export class HTMLGeneratorLite {
       }
 
       // For other files, generate without syntax highlighting
-      const html = this.buildHTMLTemplate({
-        filename,
-        filepath,
-        content: `<pre><code>${this.escapeHtml(content)}</code></pre>`,
-        fileSize,
-        lastModified,
-        lineHighlight
-      });
-
-      this.logger.info('Generated basic file view', {
-        filename,
-        language,
-        contentLength: html.length
-      });
-
-      return { ok: true, value: html };
-    } catch (error) {
-      return {
-        ok: false,
-        error: ErrorFactory.htmlGeneration(
-          error instanceof Error ? error.message : String(error),
-          'HTML_GENERATION_ERROR',
-          undefined,
-          error instanceof Error ? error : new Error(String(error))
-        )
-      };
-    }
-  }
-
-  private escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  private async generateMarkdownView(options: FileViewOptions): Promise<Result<string, HTMLGenerationError>> {
-    // Basic markdown rendering without syntax highlighting
-    const { content, filename, filepath, fileSize, lastModified, lineHighlight } = options;
-    
-    // Simple markdown to HTML conversion (basic implementation)
-    let html = content
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/```[\s\S]*?```/gim, (match) => {
-        const code = match.replace(/```(\w+)?\n?/, '').replace(/```$/, '');
-        return `<pre><code>${this.escapeHtml(code)}</code></pre>`;
-      });
-
-    // Convert remaining lines to paragraphs (basic implementation)
-    html = html
-      .split('\n\n')
-      .map(paragraph => {
-        const trimmed = paragraph.trim();
-        if (trimmed && !trimmed.startsWith('<h') && !trimmed.startsWith('<pre>')) {
-          return `<p>${trimmed}</p>`;
-        }
-        return trimmed;
-      })
-      .join('\n\n');
-
-    const finalHtml = this.buildHTMLTemplate({
-      filename,
-      filepath,
-      content: html,
-      fileSize,
-      lastModified,
-      lineHighlight
-    });
-
-    this.logger.info('Generated markdown view', {
-      filename,
-      language: 'markdown',
-      type: 'markdown'
-    });
-
-    return { ok: true, value: finalHtml };
-  }
-
-  private buildHTMLTemplate(data: {
-    filename: string;
-    filepath: string;
-    content: string;
-    fileSize: number;
-    lastModified: Date;
-    lineHighlight?: number;
-  }): string {
-    
-    return `<!DOCTYPE html>
+      const basicHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShowMe: ${data.filename}</title>
+    <title>ShowMe: ${filename}</title>
     <style>
         ${ThemeSystem.generateBaseStyles()}
         
@@ -165,29 +72,108 @@ export class HTMLGeneratorLite {
 <body>
     <main class="file-viewer" aria-label="File viewer">
         <header class="file-header" aria-label="File information">
-            <h1 class="file-title">${data.filename}</h1>
+            <h1 class="file-title">${filename}</h1>
             <div class="file-meta" aria-label="File metadata">
-                <span class="file-path" aria-label="File path">${data.filepath}</span>
-                <span class="file-size" aria-label="File size">${this.formatFileSize(data.fileSize)}</span>
-                <span class="file-modified" aria-label="Last modified date">${data.lastModified.toLocaleString()}</span>
+                <span class="file-path" aria-label="File path">${filepath}</span>
+                <span class="file-size" aria-label="File size">${this.formatFileSize(fileSize)}</span>
+                <span class="file-modified" aria-label="Last modified date">${lastModified.toLocaleString()}</span>
             </div>
         </header>
         <section class="file-content" aria-label="File content">
             <div class="code-container" aria-label="Code content">
-                ${data.content}
+                <pre><code>${this.escapeHtml(content)}</code></pre>
             </div>
         </section>
     </main>
 </body>
 </html>`;
+
+      this.logger.info('Generated basic file view', {
+        filename,
+        language,
+        type: 'basic'
+      });
+
+      return { ok: true, value: basicHtml };
+    } catch (error) {
+      return {
+        ok: false,
+        error: ErrorFactory.htmlGeneration(
+          `Failed to generate basic HTML: ${error instanceof Error ? error.message : String(error)}`,
+          'BASIC_GENERATION_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
+        )
+      };
+    }
+  }
+
+  private async generateMarkdownView(options: FileViewOptions): Promise<Result<string, HTMLGenerationError>> {
+    try {
+      const { marked } = await import('marked');
+      const htmlContent = marked(options.content);
+
+      const basicHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowMe: ${options.filename}</title>
+    <style>
+        ${ThemeSystem.generateBaseStyles()}
+    </style>
+</head>
+<body>
+    <main class="file-viewer">
+        <header class="file-header">
+            <h1 class="file-title">${options.filename}</h1>
+            <div class="file-meta">
+                <span class="file-path">${options.filepath}</span>
+                <span class="file-size">${this.formatFileSize(options.fileSize)}</span>
+                <span class="file-modified">${options.lastModified.toLocaleString()}</span>
+            </div>
+        </header>
+        <section class="file-content">
+            <div class="markdown-content">${htmlContent}</div>
+        </section>
+    </main>
+</body>
+</html>`;
+
+      return { ok: true, value: basicHtml };
+    } catch (error) {
+      return {
+        ok: false,
+        error: ErrorFactory.htmlGeneration(
+          `Markdown processing failed: ${error instanceof Error ? error.message : String(error)}`,
+          'MARKDOWN_ERROR',
+          { filename: options.filename },
+          error instanceof Error ? error : new Error(String(error))
+        )
+      };
+    }
+  }
+
+  private escapeHtml(content: string): string {
+    return content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   }
 
   async dispose(): Promise<void> {
@@ -195,18 +181,31 @@ export class HTMLGeneratorLite {
   }
 }
 
+/**
+ * Full-featured HTML generator with syntax highlighting and template engine
+ * Clean separation between data and presentation
+ */
 export class HTMLGenerator {
   private constructor(
     private readonly highlighter: Highlighter,
+    private readonly templateEngine: TemplateEngine,
     private readonly logger: Logger
   ) {}
 
   static async create(logger?: Logger): Promise<Result<HTMLGenerator, HTMLGenerationError>> {
     const actualLogger = logger || new ConsoleLogger();
     
-    actualLogger.info('Initializing Shiki highlighter');
+    actualLogger.info('Initializing HTMLGenerator with Shiki and template engine');
     
     try {
+      // Initialize template engine first
+      const templateEngine = new TemplateEngine(actualLogger);
+      const templateResult = await templateEngine.initialize();
+      if (!templateResult.ok) {
+        return { ok: false, error: templateResult.error };
+      }
+      
+      // Initialize Shiki highlighter
       const highlighter = await performanceMonitor.timeAsync(
         'shiki-highlighter-init',
         'html-generation',
@@ -227,9 +226,10 @@ export class HTMLGenerator {
         }
       );
 
-      actualLogger.info('Shiki highlighter initialized successfully', { 
+      actualLogger.info('HTMLGenerator initialized successfully', { 
         languages: highlighter.getLoadedLanguages().length,
-        themes: highlighter.getLoadedThemes().length
+        themes: highlighter.getLoadedThemes().length,
+        templateEngineReady: templateEngine.isReady()
       });
 
       // Set performance thresholds
@@ -241,18 +241,18 @@ export class HTMLGenerator {
 
       return {
         ok: true,
-        value: new HTMLGenerator(highlighter, actualLogger)
+        value: new HTMLGenerator(highlighter, templateEngine, actualLogger)
       };
     } catch (error) {
-      actualLogger.error('Failed to initialize Shiki highlighter', {
+      actualLogger.error('Failed to initialize HTMLGenerator', {
         error: error instanceof Error ? error.message : String(error)
       });
       
       return {
         ok: false,
         error: ErrorFactory.htmlGeneration(
-          `Failed to initialize Shiki highlighter: ${error instanceof Error ? error.message : String(error)}`,
-          'HIGHLIGHTER_INIT_ERROR',
+          `Failed to initialize HTMLGenerator: ${error instanceof Error ? error.message : String(error)}`,
+          'GENERATOR_INIT_ERROR',
           undefined,
           error instanceof Error ? error : new Error(String(error))
         )
@@ -332,86 +332,72 @@ export class HTMLGenerator {
     } = options;
 
     try {
-
-      // Generate syntax highlighted code with error handling and performance monitoring
-      const highlightedCode = await performanceMonitor.timeAsync(
+      // Generate syntax highlighted code with performance monitoring
+      const highlightedContent = await performanceMonitor.timeAsync(
         'syntax-highlighting',
         'html-generation',
         async () => {
           if (!this.highlighter) {
             this.logger.warn('No highlighter available, generating plain HTML', { filename, language });
-            return `<pre><code>${this.escapeHtml(content)}</code></pre>`;
-          } else {
-            try {
-              return this.highlighter.codeToHtml(content, {
-                lang: language as BundledLanguage,
-                theme: 'github-dark',
-                transformers: lineHighlight ? [
-                  {
-                    name: 'line-highlight',
-                    line(node: {properties?: Record<string, unknown>}, line: number): void {
-                      if (line === lineHighlight) {
-                        node.properties = { 
-                          ...node.properties, 
-                          class: `${node.properties?.class || ''} line-highlight`.trim() 
-                        };
-                      }
-                    }
-                  }
-                ] : []
-              });
-            } catch (highlightError) {
-              this.logger.error('Syntax highlighting failed', {
-                filename,
-                language,
-                error: highlightError instanceof Error ? highlightError.message : String(highlightError)
-              });
-              
-              // Fallback to plain HTML
-              return `<pre><code>${this.escapeHtml(content)}</code></pre>`;
-            }
+            return this.escapeHtml(content);
+          }
+          
+          try {
+            // Get just the highlighted code content without wrapping HTML
+            const html = this.highlighter.codeToHtml(content, {
+              lang: language as BundledLanguage,
+              theme: 'github-dark'
+            });
+            
+            // Extract just the content from the <code> tags
+            const match = html.match(/<code[^>]*>([\s\S]*?)<\/code>/);
+            return match ? match[1] : this.escapeHtml(content);
+            
+          } catch (highlightError) {
+            this.logger.error('Syntax highlighting failed', {
+              filename,
+              language,
+              error: highlightError instanceof Error ? highlightError.message : String(highlightError)
+            });
+            return this.escapeHtml(content);
           }
         },
-        {
-          filename,
-          language,
-          contentSize: content.length,
-          hasHighlighter: !!this.highlighter
-        }
+        { filename, language, contentSize: content.length }
       );
 
-      const result = performanceMonitor.time(
-        'html-template-build',
+      // Prepare template data
+      const templateData: TemplateData = {
+        title: `ShowMe: ${filename}`,
+        filepath,
+        fileSize: this.formatFileSize(fileSize),
+        lastModified: lastModified.toLocaleString(),
+        highlightedContent,
+        language,
+        lineHighlight: lineHighlight || null,
+        rawContent: content,
+        rawContentJson: JSON.stringify(content)
+      };
+
+      // Render using template engine
+      const templateResult = performanceMonitor.time(
+        'template-render',
         'html-generation',
-        () => {
-          return this.buildHTMLTemplate({
-            title: `ShowMe: ${filename}`,
-            filename,
-            filepath,
-            fileSize: this.formatFileSize(fileSize),
-            lastModified: lastModified.toLocaleString(),
-            content: highlightedCode,
-            styles: this.getFileViewStyles(),
-            scripts: lineHighlight ? this.getScrollScript() : ''
-          });
-        },
-        {
-          filename,
-          hasLineHighlight: !!lineHighlight,
-          contentLength: highlightedCode.length
-        }
+        () => this.templateEngine.render('file-viewer', templateData),
+        { filename, templateSize: JSON.stringify(templateData).length }
       );
 
-      this.logger.info('Generated file view', {
+      if (!templateResult.ok) {
+        return templateResult;
+      }
+
+      this.logger.info('Generated file view using template system', {
         filename,
         language,
-        contentLength: result.length
+        contentLength: templateResult.value.length
       });
 
-      return {
-        ok: true,
-        value: result
-      };
+      return templateResult;
+      
     } catch (error) {
       this.logger.error('Failed to generate file view', {
         filename,
@@ -424,7 +410,7 @@ export class HTMLGenerator {
         error: ErrorFactory.htmlGeneration(
           `Failed to generate file view: ${error instanceof Error ? error.message : String(error)}`,
           'GENERATION_ERROR',
-          undefined,
+          { filename, language },
           error instanceof Error ? error : new Error(String(error))
         )
       };
@@ -435,47 +421,56 @@ export class HTMLGenerator {
     try {
       const { marked } = await import('marked');
       
-      // Simple markdown processing without complex syntax highlighting for now
-      // This avoids API compatibility issues with marked
-      const htmlContent = marked(options.content);
+      // Process markdown content
+      const processedContent = marked(options.content);
 
-      const result = this.buildHTMLTemplate({
+      // Prepare template data for markdown
+      const templateData: TemplateData = {
         title: `ShowMe: ${options.filename}`,
-        filename: options.filename,
         filepath: options.filepath,
         fileSize: this.formatFileSize(options.fileSize),
         lastModified: options.lastModified.toLocaleString(),
-        content: `<div class="markdown-content">${htmlContent}</div>`,
-        styles: this.getMarkdownStyles(),
-        scripts: options.lineHighlight ? this.getScrollScript() : ''
+        highlightedContent: `<div class="markdown-content">${processedContent}</div>`,
+        language: 'markdown',
+        lineHighlight: options.lineHighlight || null,
+        rawContent: options.content,
+        rawContentJson: JSON.stringify(options.content)
+      };
+
+      // Render using template engine
+      const templateResult = this.templateEngine.render('file-viewer', templateData);
+      if (!templateResult.ok) {
+        return templateResult;
+      }
+
+      this.logger.info('Generated markdown view using template system', {
+        filename: options.filename,
+        contentLength: templateResult.value.length
       });
 
-      return {
-        ok: true,
-        value: result
-      };
+      return templateResult;
+      
     } catch (error) {
-      this.logger.error('Markdown processing failed', {
+      this.logger.error('Markdown processing failed, falling back to plain text', {
         filename: options.filename,
         error: error instanceof Error ? error.message : String(error)
       });
       
-      // Fallback to plain text
-      const fallbackResult = this.buildHTMLTemplate({
+      // Fallback to plain text using template system
+      const templateData: TemplateData = {
         title: `ShowMe: ${options.filename}`,
-        filename: options.filename,
         filepath: options.filepath,
         fileSize: this.formatFileSize(options.fileSize),
         lastModified: options.lastModified.toLocaleString(),
-        content: `<div class="markdown-content"><pre>${this.escapeHtml(options.content)}</pre></div>`,
-        styles: this.getMarkdownStyles(),
-        scripts: options.lineHighlight ? this.getScrollScript() : ''
-      });
-
-      return {
-        ok: true,
-        value: fallbackResult
+        highlightedContent: `<div class="markdown-content"><pre>${this.escapeHtml(options.content)}</pre></div>`,
+        language: 'markdown',
+        lineHighlight: options.lineHighlight || null,
+        rawContent: options.content,
+        rawContentJson: JSON.stringify(options.content)
       };
+
+      const fallbackResult = this.templateEngine.render('file-viewer', templateData);
+      return fallbackResult;
     }
   }
 
@@ -486,76 +481,6 @@ export class HTMLGenerator {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  private buildHTMLTemplate(params: {
-    title: string;
-    filename: string;
-    filepath: string;
-    fileSize: string;
-    lastModified: string;
-    content: string;
-    styles: string;
-    scripts: string;
-  }): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${params.title}</title>
-    <style>${params.styles}</style>
-</head>
-<body>
-    <div class="file-viewer">
-        <header class="file-header" aria-label="File information">
-            <h1 class="file-title">${params.filename}</h1>
-            <div class="file-meta" aria-label="File metadata">
-                <span aria-label="File path">Path: ${params.filepath}</span>
-                <span aria-label="File size">Size: ${params.fileSize}</span>
-                <span aria-label="Last modified date">Modified: ${params.lastModified}</span>
-            </div>
-        </header>
-        <main class="file-content" aria-label="File content">
-            <section aria-label="Code content">
-                ${params.content}
-            </section>
-        </main>
-    </div>
-    ${params.scripts}
-</body>
-</html>`;
-  }
-
-  private getFileViewStyles(): string {
-    return `
-      ${ThemeSystem.generateBaseStyles()}
-      ${ThemeSystem.generateFileViewerStyles()}
-    `;
-  }
-
-  private getMarkdownStyles(): string {
-    return `
-      ${this.getFileViewStyles()}
-    `;
-  }
-
-  private getScrollScript(): string {
-    return `
-      <script>
-        document.addEventListener('DOMContentLoaded', function() {
-          const targetLine = document.querySelector('.line-highlight');
-          if (targetLine) {
-            setTimeout(() => {
-              targetLine.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-              });
-            }, 500);
-          }
-        });
-      </script>
-    `;
   }
 
   private formatFileSize(bytes: number): string {

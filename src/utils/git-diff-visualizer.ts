@@ -131,8 +131,8 @@ export class GitDiffVisualizer {
     
     try {
       const options = {
-        outputFormat: visualizationOptions?.outputFormat || 'line-by-line',
-        colorScheme: visualizationOptions?.colorScheme || 'light',
+        outputFormat: visualizationOptions?.outputFormat || 'side-by-side',
+        colorScheme: visualizationOptions?.colorScheme || 'dark',
         matching: visualizationOptions?.matching || 'lines',
         maxLineLengthHighlight: visualizationOptions?.maxLineLengthHighlight || 10000,
         drawFileList: visualizationOptions?.drawFileList ?? true,
@@ -211,29 +211,44 @@ export class GitDiffVisualizer {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.47/bundles/css/diff2html.min.css">
   <style>
-    /* Custom styles for better diff visualization */
+    /* GitHub Dark theme for consistent styling */
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-overlay: #21262d;
+      --bg-hover: #30363d;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --border-default: #30363d;
+      --accent-green: #3fb950;
+      --accent-red: #f85149;
+      --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+    }
+
     body {
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      font-family: var(--font-mono);
       line-height: 1.5;
       margin: 0;
       padding: 20px;
-      background-color: #f8f9fa;
-      color: #333;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
     }
     
     .diff-header {
-      background: #fff;
+      background: var(--bg-secondary);
       padding: 20px;
       margin-bottom: 20px;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-default);
     }
     
     .diff-header h1 {
       margin: 0 0 15px 0;
       font-size: 24px;
-      color: #2c3e50;
+      color: var(--text-primary);
     }
     
     .diff-stats {
@@ -241,70 +256,91 @@ export class GitDiffVisualizer {
       gap: 20px;
       flex-wrap: wrap;
       font-size: 14px;
-      color: #666;
+      color: var(--text-secondary);
     }
     
     .stat-item {
-      background: #f1f3f4;
+      background: var(--bg-overlay);
       padding: 5px 12px;
       border-radius: 4px;
+      color: var(--text-secondary);
     }
     
     .stat-additions {
-      background: #d4edda;
-      color: #155724;
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.3);
     }
     
     .stat-deletions {
-      background: #f8d7da;
-      color: #721c24;
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 81, 73, 0.3);
     }
     
-    /* Enhance diff2html styles */
+    /* Override diff2html styles for GitHub Dark theme */
     .d2h-wrapper {
-      background: #fff;
+      background: var(--bg-secondary) !important;
       border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-default);
       overflow: hidden;
     }
     
     .d2h-file-header {
-      background: #f6f8fa;
-      border-bottom: 1px solid #e1e4e8;
-      padding: 10px 15px;
+      background: var(--bg-overlay) !important;
+      border-bottom: 1px solid var(--border-default) !important;
+      padding: 12px 16px;
       font-weight: 600;
+      color: var(--text-primary) !important;
+      font-family: var(--font-mono);
     }
     
     .d2h-code-line {
       font-size: 13px;
       line-height: 1.4;
+      background: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
     }
-    
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: #1a1a1a;
-        color: #e1e1e1;
-      }
-      
-      .diff-header {
-        background: #2d2d2d;
-        color: #e1e1e1;
-      }
-      
-      .diff-header h1 {
-        color: #ffffff;
-      }
-      
-      .d2h-wrapper {
-        background: #2d2d2d;
-      }
-      
-      .d2h-file-header {
-        background: #404040;
-        border-bottom-color: #555;
-        color: #e1e1e1;
-      }
+
+    .d2h-code-side-line {
+      background: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .d2h-ins {
+      background: rgba(63, 185, 80, 0.15) !important;
+      border-color: rgba(63, 185, 80, 0.3) !important;
+    }
+
+    .d2h-del {
+      background: rgba(248, 81, 73, 0.15) !important;
+      border-color: rgba(248, 81, 73, 0.3) !important;
+    }
+
+    .d2h-code-line-prefix {
+      color: var(--text-secondary) !important;
+    }
+
+    .d2h-file-side-diff {
+      border: 1px solid var(--border-default) !important;
+    }
+
+    .d2h-file-list-wrapper {
+      background: var(--bg-secondary) !important;
+      border: 1px solid var(--border-default) !important;
+    }
+
+    .d2h-file-list-header {
+      background: var(--bg-overlay) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .d2h-file-list-line {
+      color: var(--text-primary) !important;
+    }
+
+    .d2h-file-list-line:hover {
+      background: var(--bg-hover) !important;
     }
     
     /* Mobile responsive */

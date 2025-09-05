@@ -2,6 +2,7 @@ import { HTTPServer } from '../server/http-server.js';
 import { GitDetector } from '../utils/git-detector.js';
 import { GitDiffGenerator } from '../utils/git-diff-generator.js';
 import { GitDiffVisualizer } from '../utils/git-diff-visualizer.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
 import { type Logger } from '../utils/logger.js';
 /**
  * Show diff handler errors
@@ -37,8 +38,9 @@ export declare class ShowDiffHandler {
     private readonly gitDetector;
     private readonly gitDiffGenerator;
     private readonly gitDiffVisualizer;
+    private readonly browserOpener;
     private readonly logger;
-    constructor(httpServer: HTTPServer, gitDetector: GitDetector, gitDiffGenerator: GitDiffGenerator, gitDiffVisualizer: GitDiffVisualizer, logger?: Logger);
+    constructor(httpServer: HTTPServer, gitDetector: GitDetector, gitDiffGenerator: GitDiffGenerator, gitDiffVisualizer: GitDiffVisualizer, browserOpener: BrowserOpener, logger?: Logger);
     /**
      * Factory method that creates handler with default dependencies
      * Provides backward compatibility

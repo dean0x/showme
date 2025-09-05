@@ -2,8 +2,13 @@ import { createServer } from 'http';
 import { randomBytes } from 'crypto';
 import { URL } from 'url';
 import { setInterval, clearInterval } from 'timers';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { ConsoleLogger } from '../utils/logger.js';
 import { ErrorFactory } from '../utils/error-handling.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 /**
  * HTTP server for serving temporary HTML files to browser
  * Following engineering principle #7: Resource cleanup with dispose pattern
@@ -25,7 +30,15 @@ export class HTTPServer {
     async start() {
         try {
             return new Promise((resolve) => {
-                this.server = createServer(this.handleRequest.bind(this));
+                this.server = createServer((req, res) => {
+                    this.handleRequest(req, res).catch(error => {
+                        this.logger.error('Async request handling failed', {
+                            error: error instanceof Error ? error.message : String(error)
+                        });
+                        res.writeHead(500, { 'Content-Type': 'text/plain' });
+                        res.end('Internal Server Error');
+                    });
+                });
                 this.server.on('error', (error) => {
                     resolve({
                         ok: false,
@@ -94,34 +107,84 @@ export class HTTPServer {
     /**
      * Handle HTTP requests
      */
-    handleRequest(req, res) {
+    async handleRequest(req, res) {
         const url = new URL(req.url || '/', `http://localhost:${this.actualPort}`);
-        if (url.pathname.startsWith('/file/')) {
-            const fileId = url.pathname.split('/file/')[1];
-            const tempFile = this.tempFiles.get(fileId);
-            if (tempFile) {
-                res.writeHead(200, {
-                    'Content-Type': 'text/html',
-                    'Cache-Control': 'no-cache'
-                });
-                res.end(tempFile.content);
+        try {
+            if (url.pathname.startsWith('/file/')) {
+                await this.handleFileRequest(url, res);
+            }
+            else if (url.pathname.startsWith('/assets/')) {
+                await this.handleAssetRequest(url, res);
+            }
+            else if (url.pathname === '/health') {
+                this.handleHealthRequest(res);
             }
             else {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('File not found');
+                this.handleNotFound(res);
             }
         }
-        else if (url.pathname === '/health') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: 'ok',
-                tempFiles: this.tempFiles.size
-            }));
+        catch (error) {
+            this.logger.error('Request handling failed', {
+                url: req.url,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Internal Server Error');
+        }
+    }
+    handleFileRequest(url, res) {
+        const fileId = url.pathname.split('/file/')[1];
+        const tempFile = this.tempFiles.get(fileId);
+        if (tempFile) {
+            res.writeHead(200, {
+                'Content-Type': 'text/html',
+                'Cache-Control': 'no-cache'
+            });
+            res.end(tempFile.content);
         }
         else {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Not found');
+            res.end('File not found');
         }
+    }
+    async handleAssetRequest(url, res) {
+        const assetPath = url.pathname.replace('/assets/', '');
+        // Security: only allow specific files
+        if (!['file-viewer.js', 'file-viewer.css'].includes(assetPath)) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Asset not found');
+            return;
+        }
+        const filePath = path.join(__dirname, '../assets', assetPath);
+        try {
+            const content = await fs.readFile(filePath, 'utf8');
+            const contentType = assetPath.endsWith('.js') ? 'application/javascript' : 'text/css';
+            res.writeHead(200, {
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+            });
+            res.end(content);
+            this.logger.debug('Served static asset', { asset: assetPath });
+        }
+        catch (error) {
+            this.logger.warn('Failed to serve asset', {
+                asset: assetPath,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Asset not found');
+        }
+    }
+    handleHealthRequest(res) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'ok',
+            tempFiles: this.tempFiles.size
+        }));
+    }
+    handleNotFound(res) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not found');
     }
     /**
      * Start cleanup process for old temp files

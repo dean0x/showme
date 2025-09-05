@@ -18,14 +18,18 @@ export declare class HTMLGeneratorLite {
     private readonly logger;
     constructor(logger?: Logger);
     generateFileView(options: FileViewOptions): Promise<Result<string, HTMLGenerationError>>;
-    private escapeHtml;
     private generateMarkdownView;
-    private buildHTMLTemplate;
+    private escapeHtml;
     private formatFileSize;
     dispose(): Promise<void>;
 }
+/**
+ * Full-featured HTML generator with syntax highlighting and template engine
+ * Clean separation between data and presentation
+ */
 export declare class HTMLGenerator {
     private readonly highlighter;
+    private readonly templateEngine;
     private readonly logger;
     private constructor();
     static create(logger?: Logger): Promise<Result<HTMLGenerator, HTMLGenerationError>>;
@@ -34,9 +38,5 @@ export declare class HTMLGenerator {
     private generateCodeView;
     private generateMarkdownView;
     private escapeHtml;
-    private buildHTMLTemplate;
-    private getFileViewStyles;
-    private getMarkdownStyles;
-    private getScrollScript;
     private formatFileSize;
 }

@@ -1,7 +1,8 @@
 import { GitDetector } from '../utils/git-detector.js';
 import { GitDiffGenerator } from '../utils/git-diff-generator.js';
 import { GitDiffVisualizer } from '../utils/git-diff-visualizer.js';
-import { pipe, map } from '../utils/pipe.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
+import { pipe } from '../utils/pipe.js';
 import { ConsoleLogger } from '../utils/logger.js';
 /**
  * Show diff handler errors
@@ -23,12 +24,14 @@ export class ShowDiffHandler {
     gitDetector;
     gitDiffGenerator;
     gitDiffVisualizer;
+    browserOpener;
     logger;
-    constructor(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, logger = new ConsoleLogger()) {
+    constructor(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, browserOpener, logger = new ConsoleLogger()) {
         this.httpServer = httpServer;
         this.gitDetector = gitDetector;
         this.gitDiffGenerator = gitDiffGenerator;
         this.gitDiffVisualizer = gitDiffVisualizer;
+        this.browserOpener = browserOpener;
         this.logger = logger;
     }
     /**
@@ -39,14 +42,15 @@ export class ShowDiffHandler {
         const gitDetector = new GitDetector(logger);
         const gitDiffGenerator = new GitDiffGenerator(gitDetector, logger);
         const gitDiffVisualizer = new GitDiffVisualizer(gitDiffGenerator, logger);
-        return new ShowDiffHandler(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, logger);
+        const browserOpener = new BrowserOpener(logger);
+        return new ShowDiffHandler(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, browserOpener, logger);
     }
     /**
      * Handle showme.diff request using pipe composition
      */
     async handleDiffRequest(args) {
         const startTime = performance.now();
-        const result = await pipe(this.detectRepository.bind(this), this.generateDiff.bind(this), this.visualizeDiff.bind(this), this.serveHTML.bind(this), map(this.formatSuccessResponse.bind(this)))({ ...args, workingPath: process.cwd() });
+        const result = await pipe(this.detectRepository.bind(this), this.generateDiff.bind(this), this.visualizeDiff.bind(this), this.serveHTML.bind(this))({ ...args, workingPath: process.cwd() });
         const duration = performance.now() - startTime;
         this.logger.info('ShowDiff request completed', {
             success: result.ok,
@@ -54,7 +58,8 @@ export class ShowDiffHandler {
             duration: Math.round(duration)
         });
         if (result.ok) {
-            return result.value;
+            // Format success response with browser opening
+            return await this.formatSuccessResponse(result.value);
         }
         else {
             return this.formatErrorResponse(result.error);
@@ -93,8 +98,13 @@ export class ShowDiffHandler {
         let diffResult;
         try {
             if (data.base && data.target) {
-                // Commit to commit diff
-                diffResult = await this.gitDiffGenerator.getCommitDiff(data.workingPath, data.base, data.files);
+                // Commit range diff
+                diffResult = await this.gitDiffGenerator.generateDiff(data.workingPath, {
+                    type: 'commit-range',
+                    base: data.base,
+                    target: data.target,
+                    paths: data.files
+                });
             }
             else if (data.base) {
                 // Base to working directory
@@ -200,7 +210,7 @@ export class ShowDiffHandler {
     /**
      * Format success response with statistics
      */
-    formatSuccessResponse(data) {
+    async formatSuccessResponse(data) {
         const stats = data.statistics;
         const filesText = data.files && data.files.length > 0
             ? ` (${data.files.length} files)`
@@ -215,11 +225,21 @@ export class ShowDiffHandler {
             : data.base
                 ? ` ${data.base}..working`
                 : '';
+        // Attempt to open in browser
+        const openResult = await this.browserOpener.openInBrowser(data.url);
+        if (!openResult.ok) {
+            this.logger.warn('Browser opening failed, continuing with manual URL', {
+                error: openResult.error.message
+            });
+        }
+        const browserMessage = openResult.ok
+            ? this.browserOpener.generateOpenMessage(data.url, openResult.value)
+            : `🔗 **URL:** ${data.url}\n\n*Note: Please copy and paste this URL into your browser to view the diff.*`;
         return {
             content: [
                 {
                     type: 'text',
-                    text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the diff.*`
+                    text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n${browserMessage}`
                 }
             ]
         };

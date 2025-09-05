@@ -17,7 +17,8 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "cp -r src/templates dist/ && cp -r src/assets dist/",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest",
@@ -31,8 +32,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@types/handlebars": "^4.0.40",
     "diff2html": "^3.4.52",
+    "handlebars": "^4.7.8",
     "marked": "^14.1.4",
+    "open": "^10.2.0",
     "shiki": "^1.24.0"
   },
   "devDependencies": {

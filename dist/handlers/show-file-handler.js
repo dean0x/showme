@@ -1,7 +1,8 @@
 import { PathValidator } from '../utils/path-validator.js';
 import { FileManager } from '../utils/file-manager.js';
 import { HTMLGenerator } from '../utils/html-generator.js';
-import { pipe, map } from '../utils/pipe.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
+import { pipe } from '../utils/pipe.js';
 import { ConsoleLogger } from '../utils/logger.js';
 /**
  * Show file handler errors
@@ -23,12 +24,14 @@ export class ShowFileHandler {
     pathValidator;
     fileManager;
     htmlGenerator;
+    browserOpener;
     logger;
-    constructor(httpServer, pathValidator, fileManager, htmlGenerator, logger = new ConsoleLogger()) {
+    constructor(httpServer, pathValidator, fileManager, htmlGenerator, browserOpener, logger = new ConsoleLogger()) {
         this.httpServer = httpServer;
         this.pathValidator = pathValidator;
         this.fileManager = fileManager;
         this.htmlGenerator = htmlGenerator;
+        this.browserOpener = browserOpener;
         this.logger = logger;
     }
     /**
@@ -38,6 +41,7 @@ export class ShowFileHandler {
     static async create(httpServer, logger = new ConsoleLogger()) {
         const pathValidator = new PathValidator();
         const fileManager = new FileManager(pathValidator, logger);
+        const browserOpener = new BrowserOpener(logger);
         const htmlGeneratorResult = await HTMLGenerator.create(logger);
         if (!htmlGeneratorResult.ok) {
             return {
@@ -47,7 +51,7 @@ export class ShowFileHandler {
         }
         return {
             ok: true,
-            value: new ShowFileHandler(httpServer, pathValidator, fileManager, htmlGeneratorResult.value, logger)
+            value: new ShowFileHandler(httpServer, pathValidator, fileManager, htmlGeneratorResult.value, browserOpener, logger)
         };
     }
     /**
@@ -55,7 +59,7 @@ export class ShowFileHandler {
      */
     async handleFileRequest(args) {
         const startTime = performance.now();
-        const result = await pipe(this.validatePath.bind(this), this.readFile.bind(this), this.generateHTML.bind(this), this.serveHTML.bind(this), map(this.formatSuccessResponse.bind(this)))(args);
+        const result = await pipe(this.validatePath.bind(this), this.readFile.bind(this), this.generateHTML.bind(this), this.serveHTML.bind(this))(args);
         const duration = performance.now() - startTime;
         this.logger.info('ShowFile request completed', {
             path: args.path,
@@ -63,7 +67,8 @@ export class ShowFileHandler {
             duration: Math.round(duration)
         });
         if (result.ok) {
-            return result.value;
+            // Format success response with browser opening
+            return await this.formatSuccessResponse(result.value);
         }
         else {
             return this.formatErrorResponse(result.error);
@@ -168,13 +173,23 @@ export class ShowFileHandler {
     /**
      * Format success response
      */
-    formatSuccessResponse(data) {
+    async formatSuccessResponse(data) {
         const lineText = data.line_highlight ? ` (line ${data.line_highlight})` : '';
+        // Attempt to open in browser
+        const openResult = await this.browserOpener.openInBrowser(data.url);
+        if (!openResult.ok) {
+            this.logger.warn('Browser opening failed, continuing with manual URL', {
+                error: openResult.error.message
+            });
+        }
+        const browserMessage = openResult.ok
+            ? this.browserOpener.generateOpenMessage(data.url, openResult.value)
+            : `🔗 **URL:** ${data.url}\n\n*Note: Please copy and paste this URL into your browser to view the file.*`;
         return {
             content: [
                 {
                     type: 'text',
-                    text: `File opened in browser: ${data.path}${lineText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the file.*`
+                    text: `File opened in browser: ${data.path}${lineText}\n\n${browserMessage}`
                 }
             ]
         };

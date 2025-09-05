@@ -2,6 +2,7 @@ import { HTTPServer } from '../server/http-server.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { FileManager } from '../utils/file-manager.js';
 import { HTMLGenerator } from '../utils/html-generator.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
 import { type Logger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
 /**
@@ -37,8 +38,9 @@ export declare class ShowFileHandler {
     private readonly pathValidator;
     private readonly fileManager;
     private readonly htmlGenerator;
+    private readonly browserOpener;
     private readonly logger;
-    constructor(httpServer: HTTPServer, pathValidator: PathValidator, fileManager: FileManager, htmlGenerator: HTMLGenerator, logger?: Logger);
+    constructor(httpServer: HTTPServer, pathValidator: PathValidator, fileManager: FileManager, htmlGenerator: HTMLGenerator, browserOpener: BrowserOpener, logger?: Logger);
     /**
      * Factory method that creates handler with default dependencies
      * Provides backward compatibility

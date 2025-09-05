@@ -54,13 +54,18 @@ export class GitDiffGenerator {
             return { ok: false, error: repoResult.error };
         }
         const repository = repoResult.value;
-        // Generate the diff
-        const diffResult = await this.executeDiff(repository.gitRoot, options);
-        if (!diffResult.ok) {
-            return diffResult;
+        // Generate the unified diff for diff2html
+        const unifiedDiffResult = await this.executeDiff(repository.gitRoot, options);
+        if (!unifiedDiffResult.ok) {
+            return unifiedDiffResult;
         }
-        // Parse the diff output
-        const parsedResult = await this.parseDiff(diffResult.value, repository, options);
+        // Generate statistics separately
+        const statsResult = await this.executeStats(repository.gitRoot, options);
+        if (!statsResult.ok) {
+            return { ok: false, error: statsResult.error };
+        }
+        // Parse the statistics
+        const parsedResult = await this.parseStats(statsResult.value, unifiedDiffResult.value, repository, options);
         if (!parsedResult.ok) {
             return parsedResult;
         }
@@ -167,6 +172,17 @@ export class GitDiffGenerator {
                     args.push('HEAD~1', 'HEAD');
                 }
                 break;
+            case 'commit-range':
+                if (options.base && options.target) {
+                    args.push(`${options.base}..${options.target}`);
+                }
+                else if (options.target) {
+                    args.push(`HEAD~1..${options.target}`);
+                }
+                else {
+                    args.push('HEAD~1..HEAD');
+                }
+                break;
             case 'branch':
                 if (options.target) {
                     args.push(`${options.target}...HEAD`);
@@ -184,7 +200,85 @@ export class GitDiffGenerator {
         if (options.ignoreWhitespace) {
             args.push('--ignore-all-space');
         }
-        // Add stats
+        // Add unified diff format for diff2html compatibility
+        args.push('--no-prefix'); // Remove a/ b/ prefixes for cleaner output
+        // Add specific paths if provided
+        if (options.paths && options.paths.length > 0) {
+            const pathValidationResult = this.validatePaths(options.paths);
+            if (!pathValidationResult.ok) {
+                return pathValidationResult;
+            }
+            args.push('--');
+            args.push(...pathValidationResult.value);
+        }
+        return { ok: true, value: args };
+    }
+    /**
+     * Execute git diff command for statistics only
+     */
+    async executeStats(gitRoot, options) {
+        try {
+            const argsResult = this.buildStatsCommand(options);
+            if (!argsResult.ok) {
+                return argsResult;
+            }
+            const { stdout } = await execFileAsync('git', argsResult.value, {
+                cwd: gitRoot,
+                encoding: 'utf8',
+                maxBuffer: 10 * 1024 * 1024,
+                timeout: 30000
+            });
+            return { ok: true, value: stdout };
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            return {
+                ok: false,
+                error: new GitDiffError(`Stats generation failed: ${errorMessage}`, 'STATS_ERROR')
+            };
+        }
+    }
+    /**
+     * Build git diff command for statistics only
+     */
+    buildStatsCommand(options) {
+        const args = ['diff'];
+        // Add diff type specific arguments (same as before)
+        switch (options.type) {
+            case 'staged':
+                args.push('--cached');
+                break;
+            case 'unstaged':
+                break;
+            case 'commit':
+                if (options.target) {
+                    args.push(`${options.target}~1`, options.target);
+                }
+                else {
+                    args.push('HEAD~1', 'HEAD');
+                }
+                break;
+            case 'commit-range':
+                if (options.base && options.target) {
+                    args.push(`${options.base}..${options.target}`);
+                }
+                else if (options.target) {
+                    args.push(`HEAD~1..${options.target}`);
+                }
+                else {
+                    args.push('HEAD~1..HEAD');
+                }
+                break;
+            case 'branch':
+                if (options.target) {
+                    args.push(`${options.target}...HEAD`);
+                }
+                else {
+                    args.push('main...HEAD');
+                }
+                break;
+        }
+        // Add stats only
         args.push('--numstat');
         args.push('--summary');
         // Add specific paths if provided
@@ -199,113 +293,29 @@ export class GitDiffGenerator {
         return { ok: true, value: args };
     }
     /**
-     * Parse git diff output into structured format
+     * Parse git diff statistics into structured format
      */
-    async parseDiff(rawDiff, repository, options) {
+    async parseStats(statsOutput, unifiedDiff, repository, options) {
         try {
             const files = [];
-            const lines = rawDiff.split('\n');
+            const lines = statsOutput.split('\n');
             let totalAdditions = 0;
             let totalDeletions = 0;
-            let currentFile = null;
-            let currentChunk = null;
-            let chunkContent = [];
+            // Parse numstat output for statistics
             for (const line of lines) {
-                // Parse numstat lines (additions/deletions)
                 if (/^\d+\t\d+\t/.test(line)) {
                     const [additions, deletions, path] = line.split('\t');
                     const addCount = additions === '-' ? 0 : parseInt(additions, 10);
                     const delCount = deletions === '-' ? 0 : parseInt(deletions, 10);
                     totalAdditions += addCount;
                     totalDeletions += delCount;
-                    // Find or create file entry
-                    let fileIndex = files.findIndex(f => f.path === path);
-                    if (fileIndex === -1) {
-                        files.push({
-                            path,
-                            status: 'modified', // Will be updated later
-                            additions: addCount,
-                            deletions: delCount,
-                            chunks: []
-                        });
-                    }
-                    else {
-                        files[fileIndex].additions = addCount;
-                        files[fileIndex].deletions = delCount;
-                    }
-                    continue;
-                }
-                // Parse diff headers
-                if (line.startsWith('diff --git')) {
-                    // Save previous file if exists
-                    if (currentFile && currentChunk) {
-                        currentChunk.content = chunkContent.join('\n');
-                        currentFile.chunks.push(currentChunk);
-                    }
-                    const match = line.match(/diff --git a\/(.+) b\/(.+)/);
-                    if (match) {
-                        currentFile = {
-                            path: match[2],
-                            status: 'modified',
-                            chunks: [],
-                            ...(match[1] !== match[2] ? { oldPath: match[1] } : {})
-                        };
-                    }
-                    continue;
-                }
-                // Parse file status
-                if (line.startsWith('new file mode')) {
-                    if (currentFile)
-                        currentFile.status = 'added';
-                    continue;
-                }
-                if (line.startsWith('deleted file mode')) {
-                    if (currentFile)
-                        currentFile.status = 'deleted';
-                    continue;
-                }
-                if (line.startsWith('rename from')) {
-                    if (currentFile)
-                        currentFile.status = 'renamed';
-                    continue;
-                }
-                // Parse chunk headers
-                if (line.startsWith('@@')) {
-                    // Save previous chunk if exists
-                    if (currentChunk && currentFile) {
-                        currentChunk.content = chunkContent.join('\n');
-                        currentFile.chunks.push(currentChunk);
-                    }
-                    const match = line.match(/@@\s-(\d+),?(\d*)\s\+(\d+),?(\d*)\s@@(.*)/);
-                    if (match) {
-                        currentChunk = {
-                            oldStart: parseInt(match[1], 10),
-                            oldLines: match[2] ? parseInt(match[2], 10) : 1,
-                            newStart: parseInt(match[3], 10),
-                            newLines: match[4] ? parseInt(match[4], 10) : 1,
-                            header: match[5].trim()
-                        };
-                        chunkContent = [];
-                    }
-                    continue;
-                }
-                // Collect chunk content
-                if (currentChunk && (line.startsWith(' ') || line.startsWith('+') || line.startsWith('-'))) {
-                    chunkContent.push(line);
-                }
-            }
-            // Save final chunk and file
-            if (currentFile && currentChunk) {
-                currentChunk.content = chunkContent.join('\n');
-                currentFile.chunks.push(currentChunk);
-                // Ensure file is in files array
-                const existingIndex = files.findIndex(f => f.path === currentFile.path);
-                if (existingIndex === -1) {
-                    files.push(currentFile);
-                }
-                else {
-                    // Update existing file with parsed data
-                    files[existingIndex] = { ...files[existingIndex], ...currentFile };
+                    files.push({
+                        path,
+                        status: 'modified', // Simplified - diff2html will handle detailed status
+                        additions: addCount,
+                        deletions: delCount,
+                        chunks: [] // Empty - diff2html handles the actual diff parsing
+                    });
                 }
             }
             const result = {
@@ -317,7 +327,7 @@ export class GitDiffGenerator {
                     additions: totalAdditions,
                     deletions: totalDeletions
                 },
-                raw: rawDiff,
+                raw: unifiedDiff, // Use the unified diff for diff2html
                 ...(options.target ? { target: options.target } : {})
             };
             return { ok: true, value: result };
@@ -325,7 +335,7 @@ export class GitDiffGenerator {
         catch (error) {
             return {
                 ok: false,
-                error: new GitDiffError(`Failed to parse diff: ${error instanceof Error ? error.message : String(error)}`, 'DIFF_PARSE_ERROR')
+                error: new GitDiffError(`Failed to parse stats: ${error instanceof Error ? error.message : String(error)}`, 'STATS_PARSE_ERROR')
             };
         }
     }

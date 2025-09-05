@@ -2,8 +2,9 @@ import { HTTPServer } from '../server/http-server.js';
 import { GitDetector, type GitRepository } from '../utils/git-detector.js';
 import { GitDiffGenerator, type DiffResult, GitDiffError } from '../utils/git-diff-generator.js';
 import { GitDiffVisualizer, type DiffVisualizationResult, GitDiffVisualizationError } from '../utils/git-diff-visualizer.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
 import { GitOperationError } from '../utils/error-handling.js';
-import { pipe, map } from '../utils/pipe.js';
+import { pipe } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
 
@@ -52,6 +53,7 @@ export class ShowDiffHandler {
     private readonly gitDetector: GitDetector,
     private readonly gitDiffGenerator: GitDiffGenerator,
     private readonly gitDiffVisualizer: GitDiffVisualizer,
+    private readonly browserOpener: BrowserOpener,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
 
@@ -66,12 +68,14 @@ export class ShowDiffHandler {
     const gitDetector = new GitDetector(logger);
     const gitDiffGenerator = new GitDiffGenerator(gitDetector, logger);
     const gitDiffVisualizer = new GitDiffVisualizer(gitDiffGenerator, logger);
+    const browserOpener = new BrowserOpener(logger);
     
     return new ShowDiffHandler(
       httpServer,
       gitDetector,
       gitDiffGenerator,
       gitDiffVisualizer,
+      browserOpener,
       logger
     );
   }
@@ -86,8 +90,7 @@ export class ShowDiffHandler {
       this.detectRepository.bind(this),
       this.generateDiff.bind(this),
       this.visualizeDiff.bind(this),
-      this.serveHTML.bind(this),
-      map(this.formatSuccessResponse.bind(this))
+      this.serveHTML.bind(this)
     )({ ...args, workingPath: process.cwd() });
 
     const duration = performance.now() - startTime;
@@ -98,7 +101,8 @@ export class ShowDiffHandler {
     });
 
     if (result.ok) {
-      return result.value;
+      // Format success response with browser opening
+      return await this.formatSuccessResponse(result.value);
     } else {
       return this.formatErrorResponse(result.error);
     }
@@ -168,11 +172,15 @@ export class ShowDiffHandler {
 
     try {
       if (data.base && data.target) {
-        // Commit to commit diff
-        diffResult = await this.gitDiffGenerator.getCommitDiff(
+        // Commit range diff
+        diffResult = await this.gitDiffGenerator.generateDiff(
           data.workingPath,
-          data.base,
-          data.files
+          {
+            type: 'commit-range',
+            base: data.base,
+            target: data.target,
+            paths: data.files
+          }
         );
       } else if (data.base) {
         // Base to working directory
@@ -356,14 +364,14 @@ export class ShowDiffHandler {
   /**
    * Format success response with statistics
    */
-  private formatSuccessResponse(data: {
+  private async formatSuccessResponse(data: {
     workingPath: string;
     base?: string;
     target?: string;
     files?: string[];
     url: string;
     statistics: DiffResult['stats'];
-  }): MCPResponse {
+  }): Promise<MCPResponse> {
     const stats = data.statistics;
     const filesText = data.files && data.files.length > 0 
       ? ` (${data.files.length} files)` 
@@ -381,11 +389,23 @@ export class ShowDiffHandler {
         ? ` ${data.base}..working`
         : '';
 
+    // Attempt to open in browser
+    const openResult = await this.browserOpener.openInBrowser(data.url);
+    if (!openResult.ok) {
+      this.logger.warn('Browser opening failed, continuing with manual URL', {
+        error: openResult.error.message
+      });
+    }
+    
+    const browserMessage = openResult.ok 
+      ? this.browserOpener.generateOpenMessage(data.url, openResult.value)
+      : `🔗 **URL:** ${data.url}\n\n*Note: Please copy and paste this URL into your browser to view the diff.*`;
+
     return {
       content: [
         {
           type: 'text',
-          text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the diff.*`
+          text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n${browserMessage}`
         }
       ]
     };

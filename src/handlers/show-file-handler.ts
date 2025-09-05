@@ -2,7 +2,8 @@ import { HTTPServer } from '../server/http-server.js';
 import { PathValidator } from '../utils/path-validator.js';
 import { FileManager, type FileContent } from '../utils/file-manager.js';
 import { HTMLGenerator } from '../utils/html-generator.js';
-import { pipe, map } from '../utils/pipe.js';
+import { BrowserOpener } from '../utils/browser-opener.js';
+import { pipe } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
 
@@ -50,6 +51,7 @@ export class ShowFileHandler {
     private readonly pathValidator: PathValidator,
     private readonly fileManager: FileManager,
     private readonly htmlGenerator: HTMLGenerator,
+    private readonly browserOpener: BrowserOpener,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
 
@@ -63,6 +65,7 @@ export class ShowFileHandler {
   ): Promise<Result<ShowFileHandler, Error>> {
     const pathValidator = new PathValidator();
     const fileManager = new FileManager(pathValidator, logger);
+    const browserOpener = new BrowserOpener(logger);
     
     const htmlGeneratorResult = await HTMLGenerator.create(logger);
     if (!htmlGeneratorResult.ok) {
@@ -79,6 +82,7 @@ export class ShowFileHandler {
         pathValidator,
         fileManager,
         htmlGeneratorResult.value,
+        browserOpener,
         logger
       )
     };
@@ -94,8 +98,7 @@ export class ShowFileHandler {
       this.validatePath.bind(this),
       this.readFile.bind(this),
       this.generateHTML.bind(this),
-      this.serveHTML.bind(this),
-      map(this.formatSuccessResponse.bind(this))
+      this.serveHTML.bind(this)
     )(args);
 
     const duration = performance.now() - startTime;
@@ -106,7 +109,8 @@ export class ShowFileHandler {
     });
 
     if (result.ok) {
-      return result.value;
+      // Format success response with browser opening
+      return await this.formatSuccessResponse(result.value);
     } else {
       return this.formatErrorResponse(result.error);
     }
@@ -263,17 +267,30 @@ export class ShowFileHandler {
   /**
    * Format success response
    */
-  private formatSuccessResponse(data: {
+  private async formatSuccessResponse(data: {
     path: string;
     url: string;
     line_highlight?: number;
-  }): MCPResponse {
+  }): Promise<MCPResponse> {
     const lineText = data.line_highlight ? ` (line ${data.line_highlight})` : '';
+    
+    // Attempt to open in browser
+    const openResult = await this.browserOpener.openInBrowser(data.url);
+    if (!openResult.ok) {
+      this.logger.warn('Browser opening failed, continuing with manual URL', {
+        error: openResult.error.message
+      });
+    }
+    
+    const browserMessage = openResult.ok 
+      ? this.browserOpener.generateOpenMessage(data.url, openResult.value)
+      : `🔗 **URL:** ${data.url}\n\n*Note: Please copy and paste this URL into your browser to view the file.*`;
+
     return {
       content: [
         {
           type: 'text',
-          text: `File opened in browser: ${data.path}${lineText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the file.*`
+          text: `File opened in browser: ${data.path}${lineText}\n\n${browserMessage}`
         }
       ]
     };

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <link rel="stylesheet" href="/assets/file-viewer.css">
+</head>
+<body>
+    <div class="file-viewer">
+        <div class="file-header">
+            <div class="file-meta">
+                <div class="file-path">{{filepath}}</div>
+                <div class="file-info">
+                    <span class="file-size">{{fileSize}}</span>
+                    <span class="file-modified">Modified: {{lastModified}}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="file-content-container">
+            <pre class="code-with-lines" data-file="{{filepath}}"><code class="{{language}}">{{{highlightedContent}}}</code></pre>
+        </div>
+
+        <!-- Copy Button -->
+        <button class="copy-button" title="Copy to clipboard">📋 Copy</button>
+
+        <!-- Search Overlay -->
+        <div class="search-overlay" style="display: none;">
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search in file...">
+                <span class="search-results-info"></span>
+                <div class="search-controls">
+                    <button class="search-prev" title="Previous match">↑</button>
+                    <button class="search-next" title="Next match">↓</button>
+                    <button class="search-close" title="Close search">✕</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass data to JavaScript without injection -->
+    <script type="application/json" id="file-data">
+    {
+        "filepath": "{{filepath}}",
+        "lineHighlight": {{lineHighlight}},
+        "rawContent": {{{rawContentJson}}}
+    }
+    </script>
+
+    <script src="/assets/file-viewer.js"></script>
+</body>
+</html>
