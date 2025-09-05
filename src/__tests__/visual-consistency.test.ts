@@ -5,7 +5,11 @@ import { displayFile } from '../utils/display-file.js';
 
 describe('Visual Consistency & Compliance', () => {
   it('should maintain consistent design tokens across all file views', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
+    
+    const generator = generatorResult.value;
     
     // Test different file types
     const testFiles = [
@@ -16,12 +20,17 @@ describe('Visual Consistency & Compliance', () => {
     ];
 
     for (const file of testFiles) {
-      const html = await generator.generateFileView({
+      const htmlResult = await generator.generateFileView({
         ...file,
         filepath: `/${file.filename}`,
         fileSize: file.content.length,
         lastModified: new Date()
       });
+      
+      expect(htmlResult.ok).toBe(true);
+      if (!htmlResult.ok) continue;
+      
+      const html = htmlResult.value;
 
       // All files should use consistent design tokens
       expect(html).toContain(':root {');
@@ -39,9 +48,13 @@ describe('Visual Consistency & Compliance', () => {
   });
 
   it('should provide WCAG 2.1 AA accessibility compliance', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'console.log("accessibility test");',
@@ -49,6 +62,11 @@ describe('Visual Consistency & Compliance', () => {
       fileSize: 100,
       lastModified: new Date()
     });
+    
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
 
     // Semantic HTML structure
     expect(html).toContain('<main');
@@ -76,9 +94,13 @@ describe('Visual Consistency & Compliance', () => {
   });
 
   it('should implement mobile-responsive design correctly', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'console.log("responsive test");',
@@ -86,6 +108,11 @@ describe('Visual Consistency & Compliance', () => {
       fileSize: 100,
       lastModified: new Date()
     });
+    
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
 
     // Mobile breakpoints
     expect(html).toContain('@media (max-width: 768px)');
@@ -139,9 +166,13 @@ describe('Visual Consistency & Compliance', () => {
   });
 
   it('should handle line highlighting consistently', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'line1\nline2\nline3',
@@ -150,6 +181,11 @@ describe('Visual Consistency & Compliance', () => {
       fileSize: 100,
       lastModified: new Date()
     });
+    
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
 
     // Line highlighting should use theme variables
     expect(html).toContain('.line-highlight');

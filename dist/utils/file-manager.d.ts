@@ -1,4 +1,5 @@
-import { PathValidator, type Result, PathValidationError } from './path-validator.js';
+import { PathValidator, type Result } from './path-validator.js';
+import { ValidationError } from './error-handling.js';
 import { type Logger } from './logger.js';
 export interface FileContent {
     content: string;
@@ -17,6 +18,6 @@ export declare class FileManager {
     private readonly logger;
     constructor(pathValidator: PathValidator, logger?: Logger);
     static create(workspaceRoot?: string, logger?: Logger): FileManager;
-    readFile(inputPath: string): Promise<Result<FileContent, FileManagerError | PathValidationError>>;
+    readFile(inputPath: string): Promise<Result<FileContent, FileManagerError | ValidationError>>;
     private detectLanguage;
 }

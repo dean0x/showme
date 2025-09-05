@@ -1,3 +1,4 @@
+import { ValidationError } from './error-handling.js';
 export type Result<T, E = Error> = {
     ok: true;
     value: T;
@@ -5,17 +6,13 @@ export type Result<T, E = Error> = {
     ok: false;
     error: E;
 };
-export declare class PathValidationError extends Error {
-    code: string;
-    constructor(message: string, code: string);
-}
 export declare class PathValidator {
     private workspaceRoot;
     private static readonly WINDOWS_DEVICE_NAMES;
     constructor(workspaceRoot?: string);
-    validatePathSync(inputPath: string): Result<string, PathValidationError>;
+    validatePathSync(inputPath: string): Result<string, ValidationError>;
     validatePath(inputPath: string, options?: {
         checkAccess?: boolean;
-    }): Promise<Result<string, PathValidationError>>;
-    validateMultiplePaths(inputPaths: string[]): Result<string[], PathValidationError>;
+    }): Promise<Result<string, ValidationError>>;
+    validateMultiplePaths(inputPaths: string[]): Result<string[], ValidationError>;
 }

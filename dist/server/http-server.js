@@ -3,17 +3,7 @@ import { randomBytes } from 'crypto';
 import { URL } from 'url';
 import { setInterval, clearInterval } from 'timers';
 import { ConsoleLogger } from '../utils/logger.js';
-/**
- * HTTP server errors
- */
-export class HTTPServerError extends Error {
-    code;
-    constructor(message, code) {
-        super(message);
-        this.code = code;
-        this.name = 'HTTPServerError';
-    }
-}
+import { ErrorFactory } from '../utils/error-handling.js';
 /**
  * HTTP server for serving temporary HTML files to browser
  * Following engineering principle #7: Resource cleanup with dispose pattern
@@ -24,6 +14,7 @@ export class HTTPServer {
     server;
     tempFiles = new Map();
     cleanupInterval = undefined;
+    actualPort = 0;
     constructor(port, logger = new ConsoleLogger()) {
         this.port = port;
         this.logger = logger;
@@ -38,18 +29,20 @@ export class HTTPServer {
                 this.server.on('error', (error) => {
                     resolve({
                         ok: false,
-                        error: new HTTPServerError(`Failed to start server: ${error.message}`, error.code || 'SERVER_ERROR')
+                        error: ErrorFactory.httpServer(`Failed to start server: ${error.message}`, error.code || 'SERVER_ERROR')
                     });
                 });
                 this.server.listen(this.port, 'localhost', () => {
-                    const baseUrl = `http://localhost:${this.port}`;
-                    this.logger.info('HTTP server started', { port: this.port, baseUrl });
+                    const address = this.server.address();
+                    this.actualPort = typeof address === 'object' && address ? address.port : this.port;
+                    const baseUrl = `http://localhost:${this.actualPort}`;
+                    this.logger.info('HTTP server started', { port: this.actualPort, baseUrl });
                     // Start cleanup interval
                     this.startCleanup();
                     resolve({
                         ok: true,
                         value: {
-                            port: this.port,
+                            port: this.actualPort,
                             baseUrl,
                             server: this.server
                         }
@@ -60,7 +53,7 @@ export class HTTPServer {
         catch (error) {
             return {
                 ok: false,
-                error: new HTTPServerError(error instanceof Error ? error.message : String(error), 'SERVER_START_ERROR')
+                error: ErrorFactory.httpServer(error instanceof Error ? error.message : String(error), 'SERVER_START_ERROR', undefined, error instanceof Error ? error : new Error(String(error)))
             };
         }
     }
@@ -71,12 +64,12 @@ export class HTTPServer {
         if (!this.server) {
             return {
                 ok: false,
-                error: new HTTPServerError('Server not started', 'SERVER_NOT_STARTED')
+                error: ErrorFactory.httpServer('Server not started', 'SERVER_NOT_STARTED')
             };
         }
         try {
             const fileId = randomBytes(16).toString('hex');
-            const url = `http://localhost:${this.port}/file/${fileId}`;
+            const url = `http://localhost:${this.actualPort}/file/${fileId}`;
             this.tempFiles.set(fileId, {
                 content,
                 filename,
@@ -94,7 +87,7 @@ export class HTTPServer {
         catch (error) {
             return {
                 ok: false,
-                error: new HTTPServerError(error instanceof Error ? error.message : String(error), 'SERVE_ERROR')
+                error: ErrorFactory.httpServer(error instanceof Error ? error.message : String(error), 'SERVE_ERROR', undefined, error instanceof Error ? error : new Error(String(error)))
             };
         }
     }
@@ -102,7 +95,7 @@ export class HTTPServer {
      * Handle HTTP requests
      */
     handleRequest(req, res) {
-        const url = new URL(req.url || '/', `http://localhost:${this.port}`);
+        const url = new URL(req.url || '/', `http://localhost:${this.actualPort}`);
         if (url.pathname.startsWith('/file/')) {
             const fileId = url.pathname.split('/file/')[1];
             const tempFile = this.tempFiles.get(fileId);

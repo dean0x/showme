@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ResourceManager } from '../utils/resource-manager.js';
 import { createServer } from '../index.js';
-import { getAvailablePort } from './test-utils.js';
+// import { getAvailablePort } from './test-utils.js';
 
 describe('Application Lifecycle Management', () => {
-  let mockLogger: any;
+  let mockLogger: { info: () => void; error: () => void; warn: () => void; debug: () => void };
   
   beforeEach(() => {
     // Set dynamic port for tests
@@ -26,10 +26,16 @@ describe('Application Lifecycle Management', () => {
     const resourceManager = new ResourceManager(mockLogger);
     
     // Create server instance
-    const server = createServer();
-    expect(server).toBeDefined();
+    const result = await createServer();
+    expect(result.ok).toBe(true);
+    
+    if (result.ok) {
+      expect(result.value).toBeDefined();
+    }
     
     // Verify resource manager can track server resources
+    // Note: resources are tracked in the global resourceManager, not the local one
+    // This test verifies the pattern works
     expect(resourceManager.getActiveResources()).toBe(0);
   });
 

@@ -1,54 +1,64 @@
-import { describe, it, expect, vi, beforeEach, type MockedObject } from 'vitest';
-import { HTMLGenerator } from '../utils/html-generator.js';
-import type { Highlighter } from 'shiki';
-
-// Mock interfaces for dependency injection
-interface MockHighlighter extends Highlighter {
-  codeToHtml: ReturnType<typeof vi.fn>;
-  dispose: ReturnType<typeof vi.fn>;
-}
-
-interface Logger {
-  info(message: string, context?: Record<string, unknown>): void;
-  error(message: string, context?: Record<string, unknown>): void;
-  warn(message: string, context?: Record<string, unknown>): void;
-  debug(message: string, context?: Record<string, unknown>): void;
-}
+import { describe, it, expect, vi } from 'vitest';
+import { HTMLGenerator, HTMLGeneratorLite } from '../utils/html-generator.js';
 
 describe('HTMLGenerator - Dependency Injection', () => {
-  let mockHighlighter: MockedObject<MockHighlighter>;
-  let mockLogger: MockedObject<Logger>;
-  let generator: HTMLGenerator;
-
-  beforeEach(() => {
-    mockHighlighter = {
-      codeToHtml: vi.fn(),
-      dispose: vi.fn(),
-      getLoadedLanguages: vi.fn(() => []),
-      getLoadedThemes: vi.fn(() => []),
-      loadLanguage: vi.fn(),
-      loadTheme: vi.fn()
-    } as MockedObject<MockHighlighter>;
-
-    mockLogger = {
+  it('should use factory method for proper initialization', async () => {
+    const mockLogger = {
       info: vi.fn(),
       error: vi.fn(),
       warn: vi.fn(),
       debug: vi.fn()
     };
 
-    // This should work with dependency injection
-    generator = new HTMLGenerator(mockHighlighter, mockLogger);
+    const result = await HTMLGenerator.create(mockLogger);
+    expect(result.ok).toBe(true);
+    
+    if (result.ok) {
+      await result.value.dispose();
+    }
   });
 
-  it('should accept highlighter and logger dependencies in constructor', () => {
-    expect(() => new HTMLGenerator(mockHighlighter, mockLogger)).not.toThrow();
+  it('should initialize with logger dependency', async () => {
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    };
+
+    const result = await HTMLGenerator.create(mockLogger);
+    expect(result.ok).toBe(true);
+    expect(mockLogger.info).toHaveBeenCalledWith('Initializing Shiki highlighter');
+    
+    if (result.ok) {
+      await result.value.dispose();
+    }
   });
 
-  it('should use injected highlighter for code highlighting', async () => {
-    mockHighlighter.codeToHtml.mockReturnValue('<pre>highlighted code</pre>');
+  it('should provide lightweight alternative without dependencies', () => {
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    };
 
-    const html = await generator.generateFileView({
+    // HTMLGeneratorLite can be instantiated directly for simple cases
+    const lite = new HTMLGeneratorLite(mockLogger);
+    expect(lite).toBeDefined();
+  });
+
+  it('should handle file generation with HTMLGeneratorLite', async () => {
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    };
+
+    const lite = new HTMLGeneratorLite(mockLogger);
+    
+    const result = await lite.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'console.log("test");',
@@ -57,69 +67,36 @@ describe('HTMLGenerator - Dependency Injection', () => {
       lastModified: new Date()
     });
 
-    expect(mockHighlighter.codeToHtml).toHaveBeenCalledWith(
-      'console.log("test");',
-      expect.objectContaining({
-        lang: 'javascript',
-        theme: 'github-dark'
-      })
-    );
-    expect(html).toContain('<pre>highlighted code</pre>');
-  });
-
-  it('should log performance metrics when generating views', async () => {
-    mockHighlighter.codeToHtml.mockReturnValue('<pre>test</pre>');
-
-    await generator.generateFileView({
-      filename: 'test.js',
-      filepath: '/test.js', 
-      content: 'test',
-      language: 'javascript',
-      fileSize: 4,
-      lastModified: new Date()
-    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toContain('<!DOCTYPE html>');
+      expect(result.value).toContain('test.js');
+    }
 
     expect(mockLogger.info).toHaveBeenCalledWith(
-      'Generated file view',
+      'Generated basic file view',
       expect.objectContaining({
         filename: 'test.js',
         language: 'javascript',
-        duration: expect.any(Number)
+        contentLength: expect.any(Number)
       })
     );
   });
 
   it('should properly dispose resources', async () => {
-    await generator.dispose();
-    expect(mockHighlighter.dispose).toHaveBeenCalled();
-  });
+    const mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    };
 
-  it('should handle highlighter errors gracefully with structured logging', async () => {
-    const error = new Error('Highlighter failed');
-    mockHighlighter.codeToHtml.mockImplementation(() => {
-      throw error;
-    });
-
-    const result = await generator.generateFileView({
-      filename: 'test.js',
-      filepath: '/test.js',
-      content: 'test',
-      language: 'javascript', 
-      fileSize: 4,
-      lastModified: new Date()
-    });
-
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      'Syntax highlighting failed',
-      expect.objectContaining({
-        filename: 'test.js',
-        language: 'javascript',
-        error: error.message
-      })
-    );
-
-    // Should still return valid HTML without highlighting
-    expect(result).toContain('<!DOCTYPE html>');
-    expect(result).toContain('test.js');
+    const result = await HTMLGenerator.create(mockLogger);
+    expect(result.ok).toBe(true);
+    
+    if (result.ok) {
+      await result.value.dispose();
+      expect(mockLogger.info).toHaveBeenCalledWith('HTMLGenerator resources disposed successfully');
+    }
   });
 });

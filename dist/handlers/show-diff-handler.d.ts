@@ -1,4 +1,7 @@
 import { HTTPServer } from '../server/http-server.js';
+import { GitDetector } from '../utils/git-detector.js';
+import { GitDiffGenerator } from '../utils/git-diff-generator.js';
+import { GitDiffVisualizer } from '../utils/git-diff-visualizer.js';
 import { type Logger } from '../utils/logger.js';
 /**
  * Show diff handler errors
@@ -31,11 +34,16 @@ export interface MCPResponse {
  */
 export declare class ShowDiffHandler {
     private readonly httpServer;
-    private readonly logger;
     private readonly gitDetector;
     private readonly gitDiffGenerator;
     private readonly gitDiffVisualizer;
-    constructor(httpServer: HTTPServer, logger?: Logger);
+    private readonly logger;
+    constructor(httpServer: HTTPServer, gitDetector: GitDetector, gitDiffGenerator: GitDiffGenerator, gitDiffVisualizer: GitDiffVisualizer, logger?: Logger);
+    /**
+     * Factory method that creates handler with default dependencies
+     * Provides backward compatibility
+     */
+    static create(httpServer: HTTPServer, logger?: Logger): ShowDiffHandler;
     /**
      * Handle showme.diff request using pipe composition
      */

@@ -124,6 +124,7 @@ export class ThemeSystem {
         background-color: var(--bg-primary);
         color: var(--text-primary);
         line-height: var(--leading-normal);
+        padding: var(--space-4);
       }
 
       /* Focus states for accessibility */

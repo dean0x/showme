@@ -2,7 +2,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { type Result } from './path-validator.js';
 import { type Logger, ConsoleLogger } from './logger.js';
-import { GitDetector, type GitRepository, GitDetectionError } from './git-detector.js';
+import { GitDetector, type GitRepository } from './git-detector.js';
+import { GitOperationError } from './error-handling.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -105,7 +106,7 @@ export class GitDiffGenerator {
   async generateDiff(
     workingPath: string,
     options: DiffOptions
-  ): Promise<Result<DiffResult, GitDiffError | GitDetectionError>> {
+  ): Promise<Result<DiffResult, GitDiffError | GitOperationError>> {
     const startTime = performance.now();
     
     this.logger.debug('Starting git diff generation', {
@@ -450,7 +451,7 @@ export class GitDiffGenerator {
   /**
    * Get staged diff (files added to index)
    */
-  async getStagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>> {
+  async getStagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>> {
     return this.generateDiff(workingPath, {
       type: 'staged',
       ...(paths ? { paths } : {})
@@ -460,7 +461,7 @@ export class GitDiffGenerator {
   /**
    * Get unstaged diff (working directory changes)
    */
-  async getUnstagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>> {
+  async getUnstagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>> {
     return this.generateDiff(workingPath, {
       type: 'unstaged',
       ...(paths ? { paths } : {})
@@ -474,7 +475,7 @@ export class GitDiffGenerator {
     workingPath: string,
     commitHash?: string,
     paths?: string[]
-  ): Promise<Result<DiffResult, GitDiffError | GitDetectionError>> {
+  ): Promise<Result<DiffResult, GitDiffError | GitOperationError>> {
     return this.generateDiff(workingPath, {
       type: 'commit',
       ...(commitHash ? { target: commitHash } : {}),
@@ -489,7 +490,7 @@ export class GitDiffGenerator {
     workingPath: string,
     baseBranch?: string,
     paths?: string[]
-  ): Promise<Result<DiffResult, GitDiffError | GitDetectionError>> {
+  ): Promise<Result<DiffResult, GitDiffError | GitOperationError>> {
     return this.generateDiff(workingPath, {
       type: 'branch',
       ...(baseBranch ? { target: baseBranch } : {}),

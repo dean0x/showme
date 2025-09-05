@@ -1,5 +1,9 @@
 import { HTTPServer } from '../server/http-server.js';
+import { PathValidator } from '../utils/path-validator.js';
+import { FileManager } from '../utils/file-manager.js';
+import { HTMLGenerator } from '../utils/html-generator.js';
 import { type Logger } from '../utils/logger.js';
+import { type Result } from '../utils/path-validator.js';
 /**
  * Show file handler errors
  */
@@ -30,11 +34,16 @@ export interface MCPResponse {
  */
 export declare class ShowFileHandler {
     private readonly httpServer;
-    private readonly logger;
     private readonly pathValidator;
     private readonly fileManager;
     private readonly htmlGenerator;
-    constructor(httpServer: HTTPServer, logger?: Logger);
+    private readonly logger;
+    constructor(httpServer: HTTPServer, pathValidator: PathValidator, fileManager: FileManager, htmlGenerator: HTMLGenerator, logger?: Logger);
+    /**
+     * Factory method that creates handler with default dependencies
+     * Provides backward compatibility
+     */
+    static create(httpServer: HTTPServer, logger?: Logger): Promise<Result<ShowFileHandler, Error>>;
     /**
      * Handle showme.file request using pipe composition
      */

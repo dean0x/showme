@@ -3,23 +3,12 @@ import { promisify } from 'util';
 import path from 'path';
 import { type Result } from './path-validator.js';
 import { type Logger, ConsoleLogger } from './logger.js';
+import { GitOperationError, ErrorFactory } from './error-handling.js';
 
 const execFileAsync = promisify(execFile);
 
 declare const performance: { now(): number };
 
-/**
- * Git repository detection errors
- */
-export class GitDetectionError extends Error {
-  code: string;
-
-  constructor(message: string, code: string) {
-    super(message);
-    this.code = code;
-    this.name = 'GitDetectionError';
-  }
-}
 
 /**
  * Git repository information
@@ -54,7 +43,7 @@ export class GitDetector {
   /**
    * Detect git repository information from a given path
    */
-  async detectRepository(workingPath: string): Promise<Result<GitRepository, GitDetectionError>> {
+  async detectRepository(workingPath: string): Promise<Result<GitRepository, GitOperationError>> {
     const startTime = performance.now();
     const absolutePath = path.resolve(workingPath);
     
@@ -105,7 +94,7 @@ export class GitDetector {
   /**
    * Get the git repository root directory
    */
-  private async getGitRoot(workingPath: string): Promise<Result<string, GitDetectionError>> {
+  private async getGitRoot(workingPath: string): Promise<Result<string, GitOperationError>> {
     try {
       const { stdout } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], {
         cwd: workingPath,
@@ -117,7 +106,7 @@ export class GitDetector {
       if (!gitRoot) {
         return {
           ok: false,
-          error: new GitDetectionError('No git root found', 'NO_GIT_ROOT')
+          error: ErrorFactory.gitOperation('No git root found', 'NO_GIT_ROOT')
         };
       }
 
@@ -129,7 +118,7 @@ export class GitDetector {
       if (errorMessage.includes('not a git repository') || errorMessage.includes('not a git repo')) {
         return {
           ok: false,
-          error: new GitDetectionError('Not a git repository', 'NOT_GIT_REPOSITORY')
+          error: ErrorFactory.gitOperation('Not a git repository', 'NOT_GIT_REPOSITORY')
         };
       }
 
@@ -137,13 +126,13 @@ export class GitDetector {
       if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file or directory')) {
         return {
           ok: false,
-          error: new GitDetectionError(`Directory does not exist: ${workingPath}`, 'DIRECTORY_NOT_FOUND')
+          error: ErrorFactory.gitOperation(`Directory does not exist: ${workingPath}`, 'DIRECTORY_NOT_FOUND')
         };
       }
 
       return {
         ok: false,
-        error: new GitDetectionError(
+        error: ErrorFactory.gitOperation(
           `Failed to get git root: ${errorMessage}`,
           'GIT_ROOT_ERROR'
         )
@@ -154,7 +143,7 @@ export class GitDetector {
   /**
    * Get the current branch name
    */
-  private async getCurrentBranch(gitRoot: string): Promise<Result<string, GitDetectionError>> {
+  private async getCurrentBranch(gitRoot: string): Promise<Result<string, GitOperationError>> {
     try {
       const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
         cwd: gitRoot,
@@ -178,9 +167,11 @@ export class GitDetector {
     } catch (error) {
       return {
         ok: false,
-        error: new GitDetectionError(
+        error: ErrorFactory.gitOperation(
           `Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`,
-          'BRANCH_ERROR'
+          'BRANCH_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
         )
       };
     }
@@ -189,7 +180,7 @@ export class GitDetector {
   /**
    * Get remote repository information
    */
-  private async getRemoteInfo(gitRoot: string): Promise<Result<{ name: string; url: string }, GitDetectionError>> {
+  private async getRemoteInfo(gitRoot: string): Promise<Result<{ name: string; url: string }, GitOperationError>> {
     try {
       // Get default remote name (usually 'origin')
       const { stdout: remoteNames } = await execFileAsync('git', ['remote'], {
@@ -202,7 +193,7 @@ export class GitDetector {
       if (remotes.length === 0) {
         return {
           ok: false,
-          error: new GitDetectionError('No remotes configured', 'NO_REMOTES')
+          error: ErrorFactory.gitOperation('No remotes configured', 'NO_REMOTES')
         };
       }
 
@@ -227,9 +218,11 @@ export class GitDetector {
     } catch (error) {
       return {
         ok: false,
-        error: new GitDetectionError(
+        error: ErrorFactory.gitOperation(
           `Failed to get remote info: ${error instanceof Error ? error.message : String(error)}`,
-          'REMOTE_ERROR'
+          'REMOTE_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
         )
       };
     }

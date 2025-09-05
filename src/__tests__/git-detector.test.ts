@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockedObject } from 'vitest';
-import { GitDetector, GitDetectionError } from '../utils/git-detector.js';
+import { GitDetector } from '../utils/git-detector.js';
+import { GitOperationError } from '../utils/error-handling.js';
 import type { Logger } from '../utils/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -59,7 +60,7 @@ describe('GitDetector', () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toBeInstanceOf(GitDetectionError);
+        expect(result.error).toBeInstanceOf(GitOperationError);
         expect(['GIT_ROOT_ERROR', 'DIRECTORY_NOT_FOUND', 'GIT_DETECTION_FAILED']).toContain(result.error.code);
       }
 
@@ -91,7 +92,7 @@ describe('GitDetector', () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toBeInstanceOf(GitDetectionError);
+        expect(result.error).toBeInstanceOf(GitOperationError);
         expect(result.error.code).toBe('NOT_GIT_REPOSITORY');
         expect(result.error.message).toBe('Not a git repository');
       }
@@ -122,12 +123,12 @@ describe('GitDetector', () => {
     });
   });
 
-  describe('GitDetectionError', () => {
+  describe('GitOperationError', () => {
     it('should create error with code and message', () => {
-      const error = new GitDetectionError('Test error', 'TEST_ERROR');
+      const error = new GitOperationError('Test error', 'TEST_ERROR');
       expect(error.message).toBe('Test error');
       expect(error.code).toBe('TEST_ERROR');
-      expect(error.name).toBe('GitDetectionError');
+      expect(error.name).toBe('GitOperationError');
       expect(error).toBeInstanceOf(Error);
     });
   });

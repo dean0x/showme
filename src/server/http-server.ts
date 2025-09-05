@@ -4,21 +4,10 @@ import { URL } from 'url';
 import { setInterval, clearInterval } from 'timers';
 import { type Result } from '../utils/path-validator.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
+import { HTTPServerError as HTTPServerErrorClass, ErrorFactory } from '../utils/error-handling.js';
 
 declare const performance: { now(): number };
 
-/**
- * HTTP server errors
- */
-export class HTTPServerError extends Error {
-  code: string;
-
-  constructor(message: string, code: string) {
-    super(message);
-    this.code = code;
-    this.name = 'HTTPServerError';
-  }
-}
 
 /**
  * Server start result
@@ -54,6 +43,7 @@ export class HTTPServer {
   private server?: Server;
   private tempFiles = new Map<string, TempFile>();
   private cleanupInterval: ReturnType<typeof setInterval> | undefined = undefined;
+  private actualPort: number = 0;
   
   constructor(
     private readonly port: number,
@@ -63,7 +53,7 @@ export class HTTPServer {
   /**
    * Start HTTP server
    */
-  async start(): Promise<Result<ServerStartResult, HTTPServerError>> {
+  async start(): Promise<Result<ServerStartResult, HTTPServerErrorClass>> {
     try {
       return new Promise((resolve) => {
         this.server = createServer(this.handleRequest.bind(this));
@@ -71,7 +61,7 @@ export class HTTPServer {
         this.server.on('error', (error: Error & { code?: string }) => {
           resolve({
             ok: false,
-            error: new HTTPServerError(
+            error: ErrorFactory.httpServer(
               `Failed to start server: ${error.message}`,
               error.code || 'SERVER_ERROR'
             )
@@ -79,8 +69,10 @@ export class HTTPServer {
         });
 
         this.server.listen(this.port, 'localhost', () => {
-          const baseUrl = `http://localhost:${this.port}`;
-          this.logger.info('HTTP server started', { port: this.port, baseUrl });
+          const address = this.server!.address();
+          this.actualPort = typeof address === 'object' && address ? address.port : this.port;
+          const baseUrl = `http://localhost:${this.actualPort}`;
+          this.logger.info('HTTP server started', { port: this.actualPort, baseUrl });
           
           // Start cleanup interval
           this.startCleanup();
@@ -88,7 +80,7 @@ export class HTTPServer {
           resolve({
             ok: true,
             value: {
-              port: this.port,
+              port: this.actualPort,
               baseUrl,
               server: this.server!
             }
@@ -98,9 +90,11 @@ export class HTTPServer {
     } catch (error) {
       return {
         ok: false,
-        error: new HTTPServerError(
+        error: ErrorFactory.httpServer(
           error instanceof Error ? error.message : String(error),
-          'SERVER_START_ERROR'
+          'SERVER_START_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
         )
       };
     }
@@ -109,17 +103,17 @@ export class HTTPServer {
   /**
    * Serve HTML content as temporary file
    */
-  async serveHTML(content: string, filename: string): Promise<Result<HTMLServeResult, HTTPServerError>> {
+  async serveHTML(content: string, filename: string): Promise<Result<HTMLServeResult, HTTPServerErrorClass>> {
     if (!this.server) {
       return {
         ok: false,
-        error: new HTTPServerError('Server not started', 'SERVER_NOT_STARTED')
+        error: ErrorFactory.httpServer('Server not started', 'SERVER_NOT_STARTED')
       };
     }
 
     try {
       const fileId = randomBytes(16).toString('hex');
-      const url = `http://localhost:${this.port}/file/${fileId}`;
+      const url = `http://localhost:${this.actualPort}/file/${fileId}`;
       
       this.tempFiles.set(fileId, {
         content,
@@ -139,9 +133,11 @@ export class HTTPServer {
     } catch (error) {
       return {
         ok: false,
-        error: new HTTPServerError(
+        error: ErrorFactory.httpServer(
           error instanceof Error ? error.message : String(error),
-          'SERVE_ERROR'
+          'SERVE_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
         )
       };
     }
@@ -151,7 +147,7 @@ export class HTTPServer {
    * Handle HTTP requests
    */
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
-    const url = new URL(req.url || '/', `http://localhost:${this.port}`);
+    const url = new URL(req.url || '/', `http://localhost:${this.actualPort}`);
     
     if (url.pathname.startsWith('/file/')) {
       const fileId = url.pathname.split('/file/')[1];

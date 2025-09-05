@@ -6,7 +6,7 @@ import {
   type DiffVisualizationResult
 } from '../utils/git-diff-visualizer.js';
 import { GitDiffGenerator, type DiffResult, GitDiffError } from '../utils/git-diff-generator.js';
-import { GitDetectionError } from '../utils/git-detector.js';
+import { GitOperationError } from '../utils/error-handling.js';
 import type { Logger } from '../utils/logger.js';
 
 // Mock diff2html
@@ -164,7 +164,7 @@ describe('GitDiffVisualizer', () => {
     });
 
     it('should handle git detection errors', async () => {
-      const gitError = new GitDetectionError('Not a git repository', 'NOT_GIT_REPOSITORY');
+      const gitError = new GitOperationError('Not a git repository', 'NOT_GIT_REPOSITORY');
       mockDiffGenerator.generateDiff.mockResolvedValue({
         ok: false,
         error: gitError

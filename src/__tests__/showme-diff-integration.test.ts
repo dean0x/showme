@@ -22,7 +22,7 @@ describe('ShowDiff Integration', () => {
     const startResult = await httpServer.start();
     expect(startResult.ok).toBe(true);
 
-    handler = new ShowDiffHandler(httpServer, mockLogger);
+    handler = ShowDiffHandler.create(httpServer, mockLogger);
   });
 
   afterEach(async () => {

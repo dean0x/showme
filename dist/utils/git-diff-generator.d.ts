@@ -1,6 +1,7 @@
 import { type Result } from './path-validator.js';
 import { type Logger } from './logger.js';
-import { GitDetector, type GitRepository, GitDetectionError } from './git-detector.js';
+import { GitDetector, type GitRepository } from './git-detector.js';
+import { GitOperationError } from './error-handling.js';
 /**
  * Git diff generation errors
  */
@@ -77,7 +78,7 @@ export declare class GitDiffGenerator {
     /**
      * Generate diff from a working directory
      */
-    generateDiff(workingPath: string, options: DiffOptions): Promise<Result<DiffResult, GitDiffError | GitDetectionError>>;
+    generateDiff(workingPath: string, options: DiffOptions): Promise<Result<DiffResult, GitDiffError | GitOperationError>>;
     /**
      * Execute git diff command
      */
@@ -97,17 +98,17 @@ export declare class GitDiffGenerator {
     /**
      * Get staged diff (files added to index)
      */
-    getStagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>>;
+    getStagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>>;
     /**
      * Get unstaged diff (working directory changes)
      */
-    getUnstagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>>;
+    getUnstagedDiff(workingPath: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>>;
     /**
      * Get commit diff
      */
-    getCommitDiff(workingPath: string, commitHash?: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>>;
+    getCommitDiff(workingPath: string, commitHash?: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>>;
     /**
      * Get branch diff
      */
-    getBranchDiff(workingPath: string, baseBranch?: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitDetectionError>>;
+    getBranchDiff(workingPath: string, baseBranch?: string, paths?: string[]): Promise<Result<DiffResult, GitDiffError | GitOperationError>>;
 }

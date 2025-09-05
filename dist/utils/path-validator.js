@@ -1,13 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
-export class PathValidationError extends Error {
-    code;
-    constructor(message, code) {
-        super(message);
-        this.code = code;
-        this.name = 'PathValidationError';
-    }
-}
+import { ErrorFactory } from './error-handling.js';
 export class PathValidator {
     workspaceRoot;
     static WINDOWS_DEVICE_NAMES = new Set([
@@ -24,7 +17,7 @@ export class PathValidator {
             if (inputPath.includes('\0')) {
                 return {
                     ok: false,
-                    error: new PathValidationError(`Path contains null byte attack: ${inputPath.replace(/\0/g, '\\0')}`, 'NULL_BYTE_ATTACK')
+                    error: ErrorFactory.validation(`Path contains null byte attack: ${inputPath.replace(/\0/g, '\\0')}`, 'NULL_BYTE_ATTACK')
                 };
             }
             // Check for Windows device names (CVE-2025-27210)
@@ -34,7 +27,7 @@ export class PathValidator {
             if (PathValidator.WINDOWS_DEVICE_NAMES.has(nameWithoutExt)) {
                 return {
                     ok: false,
-                    error: new PathValidationError(`Path contains Windows device name: ${fileName}`, 'WINDOWS_DEVICE_NAME')
+                    error: ErrorFactory.validation(`Path contains Windows device name: ${fileName}`, 'WINDOWS_DEVICE_NAME')
                 };
             }
             const resolved = path.resolve(this.workspaceRoot, inputPath);
@@ -44,19 +37,19 @@ export class PathValidator {
                 if (inputPath.includes('..')) {
                     return {
                         ok: false,
-                        error: new PathValidationError(`Path contains directory traversal attempt: ${inputPath}`, 'DIRECTORY_TRAVERSAL')
+                        error: ErrorFactory.validation(`Path contains directory traversal attempt: ${inputPath}`, 'DIRECTORY_TRAVERSAL')
                     };
                 }
                 return {
                     ok: false,
-                    error: new PathValidationError(`Path resolves outside workspace: ${inputPath}`, 'OUTSIDE_WORKSPACE')
+                    error: ErrorFactory.validation(`Path resolves outside workspace: ${inputPath}`, 'OUTSIDE_WORKSPACE')
                 };
             }
             // Additional check for directory traversal patterns
             if (inputPath.includes('..')) {
                 return {
                     ok: false,
-                    error: new PathValidationError(`Path contains directory traversal attempt: ${inputPath}`, 'DIRECTORY_TRAVERSAL')
+                    error: ErrorFactory.validation(`Path contains directory traversal attempt: ${inputPath}`, 'DIRECTORY_TRAVERSAL')
                 };
             }
             return { ok: true, value: resolved };
@@ -64,7 +57,7 @@ export class PathValidator {
         catch (error) {
             return {
                 ok: false,
-                error: new PathValidationError(error instanceof Error ? error.message : String(error), 'VALIDATION_ERROR')
+                error: ErrorFactory.validation(error instanceof Error ? error.message : String(error), 'VALIDATION_ERROR', undefined, error instanceof Error ? error : new Error(String(error)))
             };
         }
     }
@@ -80,7 +73,7 @@ export class PathValidator {
             catch {
                 return {
                     ok: false,
-                    error: new PathValidationError(`File not accessible: ${inputPath}`, 'FILE_NOT_ACCESSIBLE')
+                    error: ErrorFactory.validation(`File not accessible: ${inputPath}`, 'FILE_NOT_ACCESSIBLE')
                 };
             }
         }

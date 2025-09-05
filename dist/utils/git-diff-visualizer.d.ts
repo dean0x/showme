@@ -1,7 +1,7 @@
 import { type Result } from './path-validator.js';
 import { type Logger } from './logger.js';
 import { GitDiffGenerator, type DiffResult, type DiffOptions, GitDiffError } from './git-diff-generator.js';
-import { GitDetectionError } from './git-detector.js';
+import { GitOperationError } from './error-handling.js';
 /**
  * Git diff visualization errors
  */
@@ -55,7 +55,7 @@ export declare class GitDiffVisualizer {
     /**
      * Visualize git diff with HTML output
      */
-    visualizeDiff(workingPath: string, options: DiffOptions, visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>>;
+    visualizeDiff(workingPath: string, options: DiffOptions, visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>>;
     /**
      * Render diff result to HTML using diff2html
      */
@@ -71,17 +71,17 @@ export declare class GitDiffVisualizer {
     /**
      * Visualize staged changes
      */
-    visualizeStagedDiff(workingPath: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>>;
+    visualizeStagedDiff(workingPath: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>>;
     /**
      * Visualize unstaged changes
      */
-    visualizeUnstagedDiff(workingPath: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>>;
+    visualizeUnstagedDiff(workingPath: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>>;
     /**
      * Visualize commit diff
      */
-    visualizeCommitDiff(workingPath: string, commitHash?: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>>;
+    visualizeCommitDiff(workingPath: string, commitHash?: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>>;
     /**
      * Visualize branch diff
      */
-    visualizeBranchDiff(workingPath: string, baseBranch?: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>>;
+    visualizeBranchDiff(workingPath: string, baseBranch?: string, paths?: string[], visualizationOptions?: VisualizationOptions): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>>;
 }

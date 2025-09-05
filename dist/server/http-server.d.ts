@@ -1,13 +1,7 @@
 import { type Server } from 'http';
 import { type Result } from '../utils/path-validator.js';
 import { type Logger } from '../utils/logger.js';
-/**
- * HTTP server errors
- */
-export declare class HTTPServerError extends Error {
-    code: string;
-    constructor(message: string, code: string);
-}
+import { HTTPServerError as HTTPServerErrorClass } from '../utils/error-handling.js';
 /**
  * Server start result
  */
@@ -33,15 +27,16 @@ export declare class HTTPServer {
     private server?;
     private tempFiles;
     private cleanupInterval;
+    private actualPort;
     constructor(port: number, logger?: Logger);
     /**
      * Start HTTP server
      */
-    start(): Promise<Result<ServerStartResult, HTTPServerError>>;
+    start(): Promise<Result<ServerStartResult, HTTPServerErrorClass>>;
     /**
      * Serve HTML content as temporary file
      */
-    serveHTML(content: string, filename: string): Promise<Result<HTMLServeResult, HTTPServerError>>;
+    serveHTML(content: string, filename: string): Promise<Result<HTMLServeResult, HTTPServerErrorClass>>;
     /**
      * Handle HTTP requests
      */

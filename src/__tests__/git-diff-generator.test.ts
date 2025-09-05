@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type MockedObject } from 'vitest';
 import { GitDiffGenerator, GitDiffError, type DiffOptions } from '../utils/git-diff-generator.js';
-import { GitDetector, type GitRepository, GitDetectionError } from '../utils/git-detector.js';
+import { GitDetector, type GitRepository } from '../utils/git-detector.js';
+import { GitOperationError } from '../utils/error-handling.js';
 import type { Logger } from '../utils/logger.js';
 
 describe('GitDiffGenerator', () => {
@@ -50,7 +51,7 @@ describe('GitDiffGenerator', () => {
     it('should handle repository detection failure', async () => {
       mockGitDetector.detectRepository.mockResolvedValue({
         ok: false,
-        error: new GitDetectionError('Not a git repository', 'NOT_GIT_REPOSITORY')
+        error: new GitOperationError('Not a git repository', 'NOT_GIT_REPOSITORY')
       });
 
       const options: DiffOptions = { type: 'unstaged' };
@@ -65,7 +66,7 @@ describe('GitDiffGenerator', () => {
     it('should log debug information when starting diff generation', async () => {
       mockGitDetector.detectRepository.mockResolvedValue({
         ok: false,
-        error: new GitDetectionError('Test error', 'TEST_ERROR')
+        error: new GitOperationError('Test error', 'TEST_ERROR')
       });
 
       const options: DiffOptions = { 
@@ -216,7 +217,7 @@ describe('GitDiffGenerator', () => {
       const result = await realGenerator.getUnstagedDiff('/tmp');
       
       expect(result.ok).toBe(false);
-      // Should propagate GitDetectionError
+      // Should propagate GitOperationError
     });
   });
 });

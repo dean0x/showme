@@ -2,7 +2,7 @@ import { html } from 'diff2html';
 import { type Result } from './path-validator.js';
 import { type Logger, ConsoleLogger } from './logger.js';
 import { GitDiffGenerator, type DiffResult, type DiffOptions, GitDiffError } from './git-diff-generator.js';
-import { GitDetectionError } from './git-detector.js';
+import { GitOperationError } from './error-handling.js';
 
 declare const performance: { now(): number };
 
@@ -78,7 +78,7 @@ export class GitDiffVisualizer {
     workingPath: string,
     options: DiffOptions,
     visualizationOptions?: VisualizationOptions
-  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>> {
+  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>> {
     const startTime = performance.now();
     
     this.logger.debug('Starting diff visualization', {
@@ -377,7 +377,7 @@ export class GitDiffVisualizer {
     workingPath: string,
     paths?: string[],
     visualizationOptions?: VisualizationOptions
-  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>> {
+  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>> {
     return this.visualizeDiff(workingPath, { type: 'staged', ...(paths ? { paths } : {}) }, visualizationOptions);
   }
 
@@ -388,7 +388,7 @@ export class GitDiffVisualizer {
     workingPath: string,
     paths?: string[],
     visualizationOptions?: VisualizationOptions
-  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>> {
+  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>> {
     return this.visualizeDiff(workingPath, { type: 'unstaged', ...(paths ? { paths } : {}) }, visualizationOptions);
   }
 
@@ -400,7 +400,7 @@ export class GitDiffVisualizer {
     commitHash?: string,
     paths?: string[],
     visualizationOptions?: VisualizationOptions
-  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>> {
+  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>> {
     return this.visualizeDiff(
       workingPath, 
       { 
@@ -420,7 +420,7 @@ export class GitDiffVisualizer {
     baseBranch?: string,
     paths?: string[],
     visualizationOptions?: VisualizationOptions
-  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>> {
+  ): Promise<Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>> {
     return this.visualizeDiff(
       workingPath,
       {

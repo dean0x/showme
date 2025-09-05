@@ -1,6 +1,6 @@
-import { type Highlighter } from 'shiki';
 import { type Logger } from './logger.js';
 import { type Result } from './path-validator.js';
+import { HTMLGenerationError } from './error-handling.js';
 export interface FileViewOptions {
     filename: string;
     filepath: string;
@@ -11,19 +11,27 @@ export interface FileViewOptions {
     lastModified: Date;
 }
 /**
- * HTML Generator errors
+ * Lightweight HTML generator without syntax highlighting
+ * For cases that need basic HTML generation without Shiki initialization
  */
-export declare class HTMLGeneratorError extends Error {
-    code: string;
-    constructor(message: string, code: string);
+export declare class HTMLGeneratorLite {
+    private readonly logger;
+    constructor(logger?: Logger);
+    generateFileView(options: FileViewOptions): Promise<Result<string, HTMLGenerationError>>;
+    private escapeHtml;
+    private generateMarkdownView;
+    private buildHTMLTemplate;
+    private formatFileSize;
+    dispose(): Promise<void>;
 }
 export declare class HTMLGenerator {
     private readonly highlighter;
     private readonly logger;
-    constructor(highlighter?: Highlighter | null, logger?: Logger);
-    static create(logger?: Logger): Promise<Result<HTMLGenerator, HTMLGeneratorError>>;
+    private constructor();
+    static create(logger?: Logger): Promise<Result<HTMLGenerator, HTMLGenerationError>>;
     dispose(): Promise<void>;
-    generateFileView(options: FileViewOptions): Promise<Result<string, HTMLGeneratorError>>;
+    generateFileView(options: FileViewOptions): Promise<Result<string, HTMLGenerationError>>;
+    private generateCodeView;
     private generateMarkdownView;
     private escapeHtml;
     private buildHTMLTemplate;

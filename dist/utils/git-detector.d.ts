@@ -1,12 +1,6 @@
 import { type Result } from './path-validator.js';
 import { type Logger } from './logger.js';
-/**
- * Git repository detection errors
- */
-export declare class GitDetectionError extends Error {
-    code: string;
-    constructor(message: string, code: string);
-}
+import { GitOperationError } from './error-handling.js';
 /**
  * Git repository information
  */
@@ -34,7 +28,7 @@ export declare class GitDetector {
     /**
      * Detect git repository information from a given path
      */
-    detectRepository(workingPath: string): Promise<Result<GitRepository, GitDetectionError>>;
+    detectRepository(workingPath: string): Promise<Result<GitRepository, GitOperationError>>;
     /**
      * Get the git repository root directory
      */

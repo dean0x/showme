@@ -2,21 +2,31 @@ import { describe, it, expect } from 'vitest';
 import { HTMLGenerator } from '../utils/html-generator.js';
 
 describe('HTMLGenerator', () => {
-  it('should create HTMLGenerator instance', () => {
-    expect(() => new HTMLGenerator()).not.toThrow();
+  it('should only allow factory method initialization', () => {
+    // Constructor is now private, should only use factory method
+    expect(HTMLGenerator.create).toBeDefined();
+    expect(typeof HTMLGenerator.create).toBe('function');
   });
 
   it('should initialize Shiki highlighter', async () => {
     // Use factory method to create properly initialized instance
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
+    
+    const generator = generatorResult.value;
     expect(generator).toBeInstanceOf(HTMLGenerator);
     await generator.dispose();
   });
 
   it('should generate highlighted HTML for TypeScript', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.ts',
       filepath: '/workspace/test.ts',
       content: 'const x: number = 42;',
@@ -25,6 +35,10 @@ describe('HTMLGenerator', () => {
       lastModified: new Date()
     });
     
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('ShowMe: test.ts');
     expect(html).toContain('const');
@@ -34,14 +48,18 @@ describe('HTMLGenerator', () => {
   });
 
   it('should handle markdown with syntax highlighting', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
+    
+    const generator = generatorResult.value;
     
     const markdownContent = `# Test
 \`\`\`typescript
 const hello = "world";
 \`\`\``;
     
-    const html = await generator.generateFileView({
+    const htmlResult = await generator.generateFileView({
       filename: 'test.md',
       filepath: '/workspace/test.md',
       content: markdownContent,
@@ -50,6 +68,10 @@ const hello = "world";
       lastModified: new Date()
     });
     
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
     expect(html).toContain('<h1>Test</h1>');
     expect(html).toContain('const hello');
     
@@ -57,10 +79,14 @@ const hello = "world";
   });
 
   it('should include file metadata in output', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
+    
+    const generator = generatorResult.value;
     const testDate = new Date('2025-01-01');
     
-    const html = await generator.generateFileView({
+    const htmlResult = await generator.generateFileView({
       filename: 'example.js',
       filepath: '/workspace/example.js',
       content: 'console.log("hello");',
@@ -69,6 +95,10 @@ const hello = "world";
       lastModified: testDate
     });
     
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
     expect(html).toContain('Path: /workspace/example.js');
     expect(html).toContain('Size: 1.0 KB');
     expect(html).toContain(testDate.toLocaleString());
@@ -77,9 +107,13 @@ const hello = "world";
   });
 
   it('should use theme system instead of hardcoded styles', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'console.log("test");',
@@ -88,6 +122,10 @@ const hello = "world";
       lastModified: new Date()
     });
 
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
     // Should use CSS custom properties in style rules
     expect(html).toContain('var(--bg-primary)');
     expect(html).toContain('var(--text-primary)');
@@ -104,9 +142,13 @@ const hello = "world";
   });
 
   it('should generate semantic HTML with ARIA labels', async () => {
-    const generator = await HTMLGenerator.create();
+    const generatorResult = await HTMLGenerator.create();
+    expect(generatorResult.ok).toBe(true);
+    if (!generatorResult.ok) return;
     
-    const html = await generator.generateFileView({
+    const generator = generatorResult.value;
+    
+    const htmlResult = await generator.generateFileView({
       filename: 'test.js',
       filepath: '/test.js',
       content: 'console.log("test");',
@@ -115,6 +157,10 @@ const hello = "world";
       lastModified: new Date()
     });
 
+    expect(htmlResult.ok).toBe(true);
+    if (!htmlResult.ok) return;
+    
+    const html = htmlResult.value;
     // Should have semantic HTML structure
     expect(html).toContain('<main');
     expect(html).toContain('aria-label');

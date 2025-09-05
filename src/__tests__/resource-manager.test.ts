@@ -121,7 +121,7 @@ describe('ResourceManager', () => {
       expect(generatorResult.ok).toBe(true);
       
       if (!generatorResult.ok) return;
-      const generator = resourceManager.register(generatorResult.value);
+      void resourceManager.register(generatorResult.value);
       
       expect(resourceManager.getActiveResources()).toBe(1);
       
@@ -143,7 +143,7 @@ describe('ResourceManager', () => {
       expect(generatorResult.ok).toBe(true);
       if (!generatorResult.ok) return;
       
-      const htmlGenerator = resourceManager.register(generatorResult.value);
+      void resourceManager.register(generatorResult.value);
       
       expect(resourceManager.getActiveResources()).toBe(2);
       

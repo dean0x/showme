@@ -1,6 +1,7 @@
 import { FileManager, FileManagerError, type FileContent } from './file-manager.js';
 import { HTMLGenerator } from './html-generator.js';
-import { type PathValidationError, type Result } from './path-validator.js';
+import { type Result } from './path-validator.js';
+import { ValidationError } from './error-handling.js';
 import { pipe, tap } from './pipe.js';
 import { ConsoleLogger, type Logger } from './logger.js';
 
@@ -10,7 +11,7 @@ import { ConsoleLogger, type Logger } from './logger.js';
  */
 export async function displayFile(filePath: string, options?: {
   lineHighlight?: number;
-}): Promise<Result<string, FileManagerError | PathValidationError>> {
+}): Promise<Result<string, FileManagerError | ValidationError>> {
   const logger = new ConsoleLogger();
   const fileManager = FileManager.create();
   const htmlGeneratorResult = await HTMLGenerator.create(logger);

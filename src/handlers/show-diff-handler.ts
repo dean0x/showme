@@ -2,7 +2,7 @@ import { HTTPServer } from '../server/http-server.js';
 import { GitDetector, type GitRepository } from '../utils/git-detector.js';
 import { GitDiffGenerator, type DiffResult, GitDiffError } from '../utils/git-diff-generator.js';
 import { GitDiffVisualizer, type DiffVisualizationResult, GitDiffVisualizationError } from '../utils/git-diff-visualizer.js';
-import { GitDetectionError } from '../utils/git-detector.js';
+import { GitOperationError } from '../utils/error-handling.js';
 import { pipe, map } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
@@ -47,17 +47,33 @@ export interface MCPResponse {
  * Following engineering principles: DI, pipe composition, Result types
  */
 export class ShowDiffHandler {
-  private readonly gitDetector: GitDetector;
-  private readonly gitDiffGenerator: GitDiffGenerator;
-  private readonly gitDiffVisualizer: GitDiffVisualizer;
-
   constructor(
     private readonly httpServer: HTTPServer,
+    private readonly gitDetector: GitDetector,
+    private readonly gitDiffGenerator: GitDiffGenerator,
+    private readonly gitDiffVisualizer: GitDiffVisualizer,
     private readonly logger: Logger = new ConsoleLogger()
-  ) {
-    this.gitDetector = new GitDetector(this.logger);
-    this.gitDiffGenerator = new GitDiffGenerator(this.gitDetector, this.logger);
-    this.gitDiffVisualizer = new GitDiffVisualizer(this.gitDiffGenerator, this.logger);
+  ) {}
+
+  /**
+   * Factory method that creates handler with default dependencies
+   * Provides backward compatibility
+   */
+  static create(
+    httpServer: HTTPServer,
+    logger: Logger = new ConsoleLogger()
+  ): ShowDiffHandler {
+    const gitDetector = new GitDetector(logger);
+    const gitDiffGenerator = new GitDiffGenerator(gitDetector, logger);
+    const gitDiffVisualizer = new GitDiffVisualizer(gitDiffGenerator, logger);
+    
+    return new ShowDiffHandler(
+      httpServer,
+      gitDetector,
+      gitDiffGenerator,
+      gitDiffVisualizer,
+      logger
+    );
   }
 
   /**
@@ -148,7 +164,7 @@ export class ShowDiffHandler {
     repository: GitRepository;
     diffResult: DiffResult;
   }, ShowDiffError>> {
-    let diffResult: Result<DiffResult, GitDiffError | GitDetectionError>;
+    let diffResult: Result<DiffResult, GitDiffError | GitOperationError>;
 
     try {
       if (data.base && data.target) {
@@ -219,7 +235,7 @@ export class ShowDiffHandler {
     htmlContent: string;
     statistics: DiffResult['stats'];
   }, ShowDiffError>> {
-    let visualizationResult: Result<DiffVisualizationResult, GitDiffError | GitDetectionError | GitDiffVisualizationError>;
+    let visualizationResult: Result<DiffVisualizationResult, GitDiffError | GitOperationError | GitDiffVisualizationError>;
 
     try {
       if (data.base && data.target) {
@@ -369,7 +385,7 @@ export class ShowDiffHandler {
       content: [
         {
           type: 'text',
-          text: `Git diff opened in browser${compareText}${filesText}${changesText}`
+          text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the diff.*`
         }
       ]
     };

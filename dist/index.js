@@ -5,6 +5,18 @@ import { HTTPServer } from "./server/http-server.js";
 import { ShowFileHandler } from "./handlers/show-file-handler.js";
 import { ShowDiffHandler } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
+import { ResourceManager } from "./utils/resource-manager.js";
+/**
+ * Server creation error
+ */
+export class ServerCreationError extends Error {
+    code;
+    constructor(message, code) {
+        super(message);
+        this.code = code;
+        this.name = 'ServerCreationError';
+    }
+}
 const ShowFileArgsSchema = z.object({
     path: z.string().describe("File path relative to workspace"),
     line_highlight: z.number().optional().describe("Optional line number to highlight and jump to"),
@@ -14,64 +26,113 @@ const ShowDiffArgsSchema = z.object({
     target: z.string().optional().describe("Target commit/branch (default: working)"),
     files: z.array(z.string()).optional().describe("Specific files to include in diff"),
 });
-export function createServer() {
+export async function createServer(resourceManager) {
     const logger = new ConsoleLogger();
-    const httpServer = new HTTPServer(3847, logger);
-    const showFileHandler = new ShowFileHandler(httpServer, logger);
-    const showDiffHandler = new ShowDiffHandler(httpServer, logger);
-    const server = new McpServer({
-        name: "showme-mcp",
-        version: "1.0.0",
-    });
-    // Start HTTP server
-    httpServer.start().then((result) => {
-        if (result.ok) {
-            logger.info('ShowMe MCP server ready', {
-                httpPort: result.value.port,
-                baseUrl: result.value.baseUrl
-            });
+    const resources = resourceManager || new ResourceManager(logger);
+    try {
+        // Use dynamic port allocation (0) in tests, fallback to 3847 only if explicitly set
+        const envPort = process.env.SHOWME_HTTP_PORT;
+        const port = envPort ? parseInt(envPort) : 0; // 0 = dynamic port allocation
+        const httpServer = resources.register(new HTTPServer(port, logger));
+        // Start HTTP server and wait for it to be ready
+        const httpResult = await httpServer.start();
+        if (!httpResult.ok) {
+            return {
+                ok: false,
+                error: new ServerCreationError(`Failed to start HTTP server: ${httpResult.error.message}`, httpResult.error.code)
+            };
         }
-        else {
-            logger.error('Failed to start HTTP server', {
-                error: result.error.message,
-                code: result.error.code
-            });
+        logger.info('HTTP server started successfully', {
+            httpPort: httpResult.value.port,
+            baseUrl: httpResult.value.baseUrl
+        });
+        // Create handlers after HTTP server is ready
+        const showFileHandlerResult = await ShowFileHandler.create(httpServer, logger);
+        if (!showFileHandlerResult.ok) {
+            return {
+                ok: false,
+                error: new ServerCreationError(`Failed to create ShowFileHandler: ${showFileHandlerResult.error.message}`, 'HANDLER_CREATION_FAILED')
+            };
         }
-    });
-    // Register showme.file tool
-    server.tool("showme.file", "Display a file in browser with syntax highlighting", ShowFileArgsSchema.shape, async (args) => {
-        const request = { path: args.path };
-        if (args.line_highlight !== undefined)
-            request.line_highlight = args.line_highlight;
-        return await showFileHandler.handleFileRequest(request);
-    });
-    // Register showme.diff tool
-    server.tool("showme.diff", "Display git diff in browser with rich visualization", ShowDiffArgsSchema.shape, async (args) => {
-        const request = {};
-        if (args.base !== undefined)
-            request.base = args.base;
-        if (args.target !== undefined)
-            request.target = args.target;
-        if (args.files !== undefined)
-            request.files = args.files;
-        return await showDiffHandler.handleDiffRequest(request);
-    });
-    return server;
+        const showDiffHandler = ShowDiffHandler.create(httpServer, logger);
+        const server = new McpServer({
+            name: "showme-mcp",
+            version: "1.0.0",
+        });
+        // Register showme.file tool
+        server.tool("showme.file", "Display a file in browser with syntax highlighting", ShowFileArgsSchema.shape, async (args) => {
+            const request = { path: args.path };
+            if (args.line_highlight !== undefined)
+                request.line_highlight = args.line_highlight;
+            return await showFileHandlerResult.value.handleFileRequest(request);
+        });
+        // Register showme.diff tool
+        server.tool("showme.diff", "Display git diff in browser with rich visualization", ShowDiffArgsSchema.shape, async (args) => {
+            const request = {};
+            if (args.base !== undefined)
+                request.base = args.base;
+            if (args.target !== undefined)
+                request.target = args.target;
+            if (args.files !== undefined)
+                request.files = args.files;
+            return await showDiffHandler.handleDiffRequest(request);
+        });
+        logger.info('ShowMe MCP server ready', {
+            httpPort: httpResult.value.port,
+            baseUrl: httpResult.value.baseUrl
+        });
+        return {
+            ok: true,
+            value: server
+        };
+    }
+    catch (error) {
+        return {
+            ok: false,
+            error: new ServerCreationError(error instanceof Error ? error.message : String(error), 'SERVER_CREATION_ERROR')
+        };
+    }
 }
-export async function startServer() {
-    const server = createServer();
+export async function startServer(resourceManager) {
+    const serverResult = await createServer(resourceManager);
+    if (!serverResult.ok) {
+        throw new Error(`Failed to create server: ${serverResult.error.message}`);
+    }
+    const server = serverResult.value;
     const transport = new StdioServerTransport();
     await server.connect(transport);
 }
 // Main entry point for CLI execution
 async function main() {
+    const logger = new ConsoleLogger();
+    const resourceManager = new ResourceManager(logger);
+    // Graceful shutdown handler
+    const gracefulShutdown = async () => {
+        console.log('\nReceived shutdown signal. Cleaning up...');
+        try {
+            await resourceManager.disposeAll();
+            console.log('All resources cleaned up successfully');
+            process.exit(0);
+        }
+        catch (error) {
+            console.error('Error during cleanup:', error);
+            process.exit(1);
+        }
+    };
     try {
-        await startServer();
+        // Register shutdown handlers
+        process.on('SIGINT', gracefulShutdown);
+        process.on('SIGTERM', gracefulShutdown);
+        process.on('uncaughtException', async (error) => {
+            console.error('Uncaught exception:', error);
+            await gracefulShutdown();
+        });
+        await startServer(resourceManager);
         console.log("ShowMe MCP server running...");
     }
     catch (error) {
         console.error("Server error:", error);
-        process.exit(1);
+        await gracefulShutdown();
     }
 }
 // Only run main if this file is executed directly

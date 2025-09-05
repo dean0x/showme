@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HTMLGenerator } from '../utils/html-generator.js';
+import { HTMLGeneratorLite } from '../utils/html-generator.js';
 import { type Logger } from '../utils/logger.js';
 
 describe('HTMLGenerator Result Pattern', () => {
   let mockLogger: Logger;
-  let generator: HTMLGenerator;
+  let generator: HTMLGeneratorLite;
 
   beforeEach(() => {
     mockLogger = {
@@ -14,7 +14,7 @@ describe('HTMLGenerator Result Pattern', () => {
       debug: vi.fn(),
     };
     
-    generator = new HTMLGenerator(null, mockLogger);
+    generator = new HTMLGeneratorLite(mockLogger);
   });
 
   it('should return Result<string, HTMLGeneratorError> for successful file view generation', async () => {

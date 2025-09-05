@@ -1,16 +1,11 @@
 import path from 'path';
 import fs from 'fs/promises';
+import { ValidationError, ErrorFactory } from './error-handling.js';
 
 export type Result<T, E = Error> = 
   | { ok: true; value: T }
   | { ok: false; error: E };
 
-export class PathValidationError extends Error {
-  constructor(message: string, public code: string) {
-    super(message);
-    this.name = 'PathValidationError';
-  }
-}
 
 export class PathValidator {
   private workspaceRoot: string;
@@ -24,13 +19,13 @@ export class PathValidator {
     this.workspaceRoot = path.resolve(workspaceRoot || process.cwd());
   }
 
-  validatePathSync(inputPath: string): Result<string, PathValidationError> {
+  validatePathSync(inputPath: string): Result<string, ValidationError> {
     try {
       // Check for null byte attack
       if (inputPath.includes('\0')) {
         return {
           ok: false,
-          error: new PathValidationError(
+          error: ErrorFactory.validation(
             `Path contains null byte attack: ${inputPath.replace(/\0/g, '\\0')}`,
             'NULL_BYTE_ATTACK'
           )
@@ -44,7 +39,7 @@ export class PathValidator {
       if (PathValidator.WINDOWS_DEVICE_NAMES.has(nameWithoutExt)) {
         return {
           ok: false,
-          error: new PathValidationError(
+          error: ErrorFactory.validation(
             `Path contains Windows device name: ${fileName}`,
             'WINDOWS_DEVICE_NAME'
           )
@@ -59,7 +54,7 @@ export class PathValidator {
         if (inputPath.includes('..')) {
           return {
             ok: false,
-            error: new PathValidationError(
+            error: ErrorFactory.validation(
               `Path contains directory traversal attempt: ${inputPath}`,
               'DIRECTORY_TRAVERSAL'
             )
@@ -68,7 +63,7 @@ export class PathValidator {
         
         return {
           ok: false,
-          error: new PathValidationError(
+          error: ErrorFactory.validation(
             `Path resolves outside workspace: ${inputPath}`,
             'OUTSIDE_WORKSPACE'
           )
@@ -79,7 +74,7 @@ export class PathValidator {
       if (inputPath.includes('..')) {
         return {
           ok: false,
-          error: new PathValidationError(
+          error: ErrorFactory.validation(
             `Path contains directory traversal attempt: ${inputPath}`,
             'DIRECTORY_TRAVERSAL'
           )
@@ -90,9 +85,11 @@ export class PathValidator {
     } catch (error) {
       return { 
         ok: false, 
-        error: new PathValidationError(
+        error: ErrorFactory.validation(
           error instanceof Error ? error.message : String(error),
-          'VALIDATION_ERROR'
+          'VALIDATION_ERROR',
+          undefined,
+          error instanceof Error ? error : new Error(String(error))
         )
       };
     }
@@ -101,7 +98,7 @@ export class PathValidator {
   async validatePath(
     inputPath: string, 
     options: { checkAccess?: boolean } = {}
-  ): Promise<Result<string, PathValidationError>> {
+  ): Promise<Result<string, ValidationError>> {
     const result = this.validatePathSync(inputPath);
     
     if (!result.ok) {
@@ -114,7 +111,7 @@ export class PathValidator {
       } catch {
         return {
           ok: false,
-          error: new PathValidationError(
+          error: ErrorFactory.validation(
             `File not accessible: ${inputPath}`,
             'FILE_NOT_ACCESSIBLE'
           )
@@ -125,7 +122,7 @@ export class PathValidator {
     return result;
   }
 
-  validateMultiplePaths(inputPaths: string[]): Result<string[], PathValidationError> {
+  validateMultiplePaths(inputPaths: string[]): Result<string[], ValidationError> {
     const validatedPaths: string[] = [];
     
     for (const inputPath of inputPaths) {

@@ -2,18 +2,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { ConsoleLogger } from './logger.js';
+import { ErrorFactory } from './error-handling.js';
 const execFileAsync = promisify(execFile);
-/**
- * Git repository detection errors
- */
-export class GitDetectionError extends Error {
-    code;
-    constructor(message, code) {
-        super(message);
-        this.code = code;
-        this.name = 'GitDetectionError';
-    }
-}
 /**
  * Git repository detector following engineering principles
  * - Uses Result types for error handling
@@ -87,7 +77,7 @@ export class GitDetector {
             if (!gitRoot) {
                 return {
                     ok: false,
-                    error: new GitDetectionError('No git root found', 'NO_GIT_ROOT')
+                    error: ErrorFactory.gitOperation('No git root found', 'NO_GIT_ROOT')
                 };
             }
             return { ok: true, value: gitRoot };
@@ -98,19 +88,19 @@ export class GitDetector {
             if (errorMessage.includes('not a git repository') || errorMessage.includes('not a git repo')) {
                 return {
                     ok: false,
-                    error: new GitDetectionError('Not a git repository', 'NOT_GIT_REPOSITORY')
+                    error: ErrorFactory.gitOperation('Not a git repository', 'NOT_GIT_REPOSITORY')
                 };
             }
             // Check for ENOENT (directory doesn't exist)
             if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file or directory')) {
                 return {
                     ok: false,
-                    error: new GitDetectionError(`Directory does not exist: ${workingPath}`, 'DIRECTORY_NOT_FOUND')
+                    error: ErrorFactory.gitOperation(`Directory does not exist: ${workingPath}`, 'DIRECTORY_NOT_FOUND')
                 };
             }
             return {
                 ok: false,
-                error: new GitDetectionError(`Failed to get git root: ${errorMessage}`, 'GIT_ROOT_ERROR')
+                error: ErrorFactory.gitOperation(`Failed to get git root: ${errorMessage}`, 'GIT_ROOT_ERROR')
             };
         }
     }
@@ -139,7 +129,7 @@ export class GitDetector {
         catch (error) {
             return {
                 ok: false,
-                error: new GitDetectionError(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`, 'BRANCH_ERROR')
+                error: ErrorFactory.gitOperation(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`, 'BRANCH_ERROR', undefined, error instanceof Error ? error : new Error(String(error)))
             };
         }
     }
@@ -158,7 +148,7 @@ export class GitDetector {
             if (remotes.length === 0) {
                 return {
                     ok: false,
-                    error: new GitDetectionError('No remotes configured', 'NO_REMOTES')
+                    error: ErrorFactory.gitOperation('No remotes configured', 'NO_REMOTES')
                 };
             }
             // Use the first remote (typically 'origin')
@@ -180,7 +170,7 @@ export class GitDetector {
         catch (error) {
             return {
                 ok: false,
-                error: new GitDetectionError(`Failed to get remote info: ${error instanceof Error ? error.message : String(error)}`, 'REMOTE_ERROR')
+                error: ErrorFactory.gitOperation(`Failed to get remote info: ${error instanceof Error ? error.message : String(error)}`, 'REMOTE_ERROR', undefined, error instanceof Error ? error : new Error(String(error)))
             };
         }
     }

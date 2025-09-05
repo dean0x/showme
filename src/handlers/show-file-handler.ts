@@ -45,17 +45,43 @@ export interface MCPResponse {
  * Following engineering principles: DI, pipe composition, Result types
  */
 export class ShowFileHandler {
-  private readonly pathValidator: PathValidator;
-  private readonly fileManager: FileManager; 
-  private readonly htmlGenerator: HTMLGenerator;
-
   constructor(
     private readonly httpServer: HTTPServer,
+    private readonly pathValidator: PathValidator,
+    private readonly fileManager: FileManager,
+    private readonly htmlGenerator: HTMLGenerator,
     private readonly logger: Logger = new ConsoleLogger()
-  ) {
-    this.pathValidator = new PathValidator();
-    this.fileManager = new FileManager(this.pathValidator, this.logger);
-    this.htmlGenerator = new HTMLGenerator(null, this.logger); // No highlighter for basic usage
+  ) {}
+
+  /**
+   * Factory method that creates handler with default dependencies
+   * Provides backward compatibility
+   */
+  static async create(
+    httpServer: HTTPServer,
+    logger: Logger = new ConsoleLogger()
+  ): Promise<Result<ShowFileHandler, Error>> {
+    const pathValidator = new PathValidator();
+    const fileManager = new FileManager(pathValidator, logger);
+    
+    const htmlGeneratorResult = await HTMLGenerator.create(logger);
+    if (!htmlGeneratorResult.ok) {
+      return {
+        ok: false,
+        error: new Error(`Failed to create HTMLGenerator: ${htmlGeneratorResult.error.message}`)
+      };
+    }
+    
+    return {
+      ok: true,
+      value: new ShowFileHandler(
+        httpServer,
+        pathValidator,
+        fileManager,
+        htmlGeneratorResult.value,
+        logger
+      )
+    };
   }
 
   /**
@@ -247,7 +273,7 @@ export class ShowFileHandler {
       content: [
         {
           type: 'text',
-          text: `File opened in browser: ${data.path}${lineText}`
+          text: `File opened in browser: ${data.path}${lineText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the file.*`
         }
       ]
     };

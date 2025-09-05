@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { PathValidator, type Result, PathValidationError } from './path-validator.js';
+import { PathValidator, type Result } from './path-validator.js';
+import { ValidationError } from './error-handling.js';
 import { type Logger, ConsoleLogger } from './logger.js';
 
 declare const performance: {
@@ -34,7 +35,7 @@ export class FileManager {
     return new FileManager(pathValidator, logger || new ConsoleLogger());
   }
 
-  async readFile(inputPath: string): Promise<Result<FileContent, FileManagerError | PathValidationError>> {
+  async readFile(inputPath: string): Promise<Result<FileContent, FileManagerError | ValidationError>> {
     const startTime = performance.now();
     
     this.logger.debug('Starting file read operation', {

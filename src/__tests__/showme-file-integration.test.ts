@@ -22,7 +22,7 @@ describe('ShowFile Integration', () => {
     const startResult = await httpServer.start();
     expect(startResult.ok).toBe(true);
 
-    handler = new ShowFileHandler(httpServer, mockLogger);
+    handler = ShowFileHandler.create(httpServer, mockLogger);
   });
 
   afterEach(async () => {

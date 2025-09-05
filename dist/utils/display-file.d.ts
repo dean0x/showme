@@ -1,6 +1,7 @@
 import { FileManager, FileManagerError } from './file-manager.js';
 import { HTMLGenerator } from './html-generator.js';
-import { type PathValidationError, type Result } from './path-validator.js';
+import { type Result } from './path-validator.js';
+import { ValidationError } from './error-handling.js';
 import { type Logger } from './logger.js';
 /**
  * High-level utility function for displaying files in the browser
@@ -8,7 +9,7 @@ import { type Logger } from './logger.js';
  */
 export declare function displayFile(filePath: string, options?: {
     lineHighlight?: number;
-}): Promise<Result<string, FileManagerError | PathValidationError>>;
+}): Promise<Result<string, FileManagerError | ValidationError>>;
 /**
  * Legacy compatibility - create instances manually for advanced usage
  */

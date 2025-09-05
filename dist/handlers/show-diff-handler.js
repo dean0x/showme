@@ -20,16 +20,26 @@ export class ShowDiffError extends Error {
  */
 export class ShowDiffHandler {
     httpServer;
-    logger;
     gitDetector;
     gitDiffGenerator;
     gitDiffVisualizer;
-    constructor(httpServer, logger = new ConsoleLogger()) {
+    logger;
+    constructor(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, logger = new ConsoleLogger()) {
         this.httpServer = httpServer;
+        this.gitDetector = gitDetector;
+        this.gitDiffGenerator = gitDiffGenerator;
+        this.gitDiffVisualizer = gitDiffVisualizer;
         this.logger = logger;
-        this.gitDetector = new GitDetector(this.logger);
-        this.gitDiffGenerator = new GitDiffGenerator(this.gitDetector, this.logger);
-        this.gitDiffVisualizer = new GitDiffVisualizer(this.gitDiffGenerator, this.logger);
+    }
+    /**
+     * Factory method that creates handler with default dependencies
+     * Provides backward compatibility
+     */
+    static create(httpServer, logger = new ConsoleLogger()) {
+        const gitDetector = new GitDetector(logger);
+        const gitDiffGenerator = new GitDiffGenerator(gitDetector, logger);
+        const gitDiffVisualizer = new GitDiffVisualizer(gitDiffGenerator, logger);
+        return new ShowDiffHandler(httpServer, gitDetector, gitDiffGenerator, gitDiffVisualizer, logger);
     }
     /**
      * Handle showme.diff request using pipe composition
@@ -209,7 +219,7 @@ export class ShowDiffHandler {
             content: [
                 {
                     type: 'text',
-                    text: `Git diff opened in browser${compareText}${filesText}${changesText}`
+                    text: `Git diff opened in browser${compareText}${filesText}${changesText}\n\n🔗 **URL:** ${data.url}\n\n*Note: In devcontainer environments, copy and paste this URL into your host browser to view the diff.*`
                 }
             ]
         };

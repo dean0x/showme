@@ -15,6 +15,13 @@ export default [
       globals: {
         console: 'readonly',
         process: 'readonly',
+        global: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        performance: 'readonly',
       },
     },
     plugins: {
