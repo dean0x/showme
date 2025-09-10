@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-file support in CLI - open multiple files with a single command
 - Version flag (`--version`, `-v`) to display CLI version
 
+### Changed
+- Removed `cwd` requirement from MCP configuration - now uses current working directory
+- Allow absolute paths to any file on the system
+- Path validation now only blocks directory traversal for relative paths that escape workspace
+
 ### Fixed
 - Aligned CLI functionality with MCP server capabilities
 - Updated import syntax to use `with` instead of deprecated `assert`

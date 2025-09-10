@@ -27,13 +27,13 @@ describe('PathValidator', () => {
     }
   });
 
-  it('should reject absolute path outside workspace', () => {
+  it('should accept absolute paths', () => {
     const validator = new PathValidator('/workspace/myproject');
     const result = validator.validatePathSync('/etc/passwd');
     
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('OUTSIDE_WORKSPACE');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toBe('/etc/passwd');
     }
   });
 
@@ -110,28 +110,34 @@ describe('PathValidator', () => {
     }
   });
 
-  it('should consistently classify any .. usage as directory traversal', () => {
+  it('should only reject .. in relative paths that escape workspace', () => {
     const validator = new PathValidator('/workspace/myproject');
     
-    // Even if it theoretically resolves within workspace, .. usage is always suspicious
-    const result = validator.validatePathSync('../../../workspace/myproject/valid.txt');
+    // Relative path with .. that escapes workspace
+    const escapingResult = validator.validatePathSync('../../../etc/passwd');
+    expect(escapingResult.ok).toBe(false);
+    if (!escapingResult.ok) {
+      expect(escapingResult.error.code).toBe('DIRECTORY_TRAVERSAL');
+      expect(escapingResult.error.message).toContain('directory traversal');
+    }
     
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('DIRECTORY_TRAVERSAL');
-      expect(result.error.message).toContain('directory traversal');
+    // Relative path with .. that stays within workspace
+    const validResult = validator.validatePathSync('src/../README.md');
+    expect(validResult.ok).toBe(true);
+    if (validResult.ok) {
+      expect(validResult.value).toBe('/workspace/myproject/README.md');
     }
   });
 
-  it('should correctly classify absolute paths outside workspace', () => {
+  it('should correctly handle absolute paths', () => {
     const validator = new PathValidator('/workspace/myproject');
     
-    // Pure outside workspace without traversal patterns
+    // Absolute paths are now allowed
     const result = validator.validatePathSync('/completely/different/path/file.txt');
     
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('OUTSIDE_WORKSPACE');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toBe('/completely/different/path/file.txt');
     }
   });
 
@@ -143,9 +149,9 @@ describe('PathValidator', () => {
     expect(normalizedPath1.ok).toBe(true);
     
     const normalizedPath2 = await validator.validatePath('src/subdir/../index.ts');
-    expect(normalizedPath2.ok).toBe(false); // Contains .. - should be rejected
-    if (!normalizedPath2.ok) {
-      expect(normalizedPath2.error.code).toBe('DIRECTORY_TRAVERSAL');
+    expect(normalizedPath2.ok).toBe(true); // Contains .. but stays within workspace
+    if (normalizedPath2.ok) {
+      expect(normalizedPath2.value).toContain('src/index.ts');
     }
     
     // Empty string should be handled gracefully

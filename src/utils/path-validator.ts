@@ -46,12 +46,15 @@ export class PathValidator {
         };
       }
 
-      const resolved = path.resolve(this.workspaceRoot, inputPath);
+      // Resolve the path - if it's absolute, use it directly; otherwise resolve relative to workspace
+      const resolved = path.isAbsolute(inputPath) 
+        ? inputPath 
+        : path.resolve(this.workspaceRoot, inputPath);
       
-      // Ensure resolved path is within workspace boundaries
-      if (!resolved.startsWith(this.workspaceRoot)) {
-        // Check if it's due to directory traversal
-        if (inputPath.includes('..')) {
+      // Check for directory traversal attempts in relative paths
+      if (!path.isAbsolute(inputPath) && inputPath.includes('..')) {
+        // For relative paths, ensure they don't escape the workspace
+        if (!resolved.startsWith(this.workspaceRoot)) {
           return {
             ok: false,
             error: ErrorFactory.validation(
@@ -60,25 +63,6 @@ export class PathValidator {
             )
           };
         }
-        
-        return {
-          ok: false,
-          error: ErrorFactory.validation(
-            `Path resolves outside workspace: ${inputPath}`,
-            'OUTSIDE_WORKSPACE'
-          )
-        };
-      }
-
-      // Additional check for directory traversal patterns
-      if (inputPath.includes('..')) {
-        return {
-          ok: false,
-          error: ErrorFactory.validation(
-            `Path contains directory traversal attempt: ${inputPath}`,
-            'DIRECTORY_TRAVERSAL'
-          )
-        };
       }
 
       return { ok: true, value: resolved };

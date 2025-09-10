@@ -32,8 +32,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
   "mcpServers": {
     "showme": {
       "command": "npx",
-      "args": ["showme"],
-      "cwd": "/path/to/your/project"
+      "args": ["showme"]
     }
   }
 }
@@ -45,12 +44,13 @@ Or if installed globally:
 {
   "mcpServers": {
     "showme": {
-      "command": "showme-mcp",
-      "cwd": "/path/to/your/project"
+      "command": "showme-mcp"
     }
   }
 }
 ```
+
+**Note:** The server uses the current working directory. Claude will automatically run it in your project folder when you open a project.
 
 ## MCP Tools
 
@@ -265,7 +265,7 @@ sudo npm install -g showme
 
 ### MCP server not connecting
 1. Check your Claude Desktop configuration file
-2. Ensure the `cwd` path exists and is correct
+2. Ensure the command is correctly spelled
 3. Restart Claude Desktop after configuration changes
 
 ## License
