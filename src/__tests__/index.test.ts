@@ -12,8 +12,8 @@ describe('MCP Server Structure', () => {
     
     if (result.ok) {
       expect(result.value).toBeDefined();
-      // McpServer automatically manages capabilities - tools capability is implicit
-      expect(typeof result.value.tool).toBe('function'); // Should have tool registration method
+      // Server instance has setRequestHandler for tools
+      expect(typeof result.value.setRequestHandler).toBe('function');
     }
   });
 
@@ -27,9 +27,9 @@ describe('MCP Server Structure', () => {
     
     if (result.ok) {
       const server = result.value;
-      // Verify server has tool registration methods (McpServer manages capabilities internally)
-      expect(typeof server.tool).toBe('function');
-      expect(typeof server.registerTool).toBe('function');
+      // Verify server has request handler for tools
+      expect(typeof server.setRequestHandler).toBe('function');
+      expect(typeof server.connect).toBe('function');
     }
   });
 });

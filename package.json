@@ -1,11 +1,12 @@
 {
-  "name": "showme-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for ephemeral file viewing in browser with syntax highlighting",
+  "name": "showme",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for opening files and git diffs directly in VS Code with syntax highlighting",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "showme-mcp": "./dist/index.js"
+    "showme-mcp": "./dist/index.js",
+    "showme": "./dist/cli.js"
   },
   "files": [
     "dist/",
@@ -17,10 +18,11 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run copy-assets",
-    "copy-assets": "cp -r src/templates dist/ && cp -r src/assets dist/",
+    "build": "tsc",
     "dev": "tsx watch src/index.ts",
+    "dev:cli": "tsx src/cli.ts",
     "start": "node dist/index.js",
+    "start:cli": "node dist/cli.js",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -31,13 +33,7 @@
     "prebuild": "npm run clean && npm run lint && npm run type-check"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@types/handlebars": "^4.0.40",
-    "diff2html": "^3.4.52",
-    "handlebars": "^4.7.8",
-    "marked": "^14.1.4",
-    "open": "^10.2.0",
-    "shiki": "^1.24.0"
+    "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
@@ -52,12 +48,23 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "file-viewer",
-    "syntax-highlighting",
+    "vscode",
     "git-diff",
     "claude-code",
     "development-tools"
   ],
-  "author": "ShowMe MCP Team",
-  "license": "MIT"
+  "author": "dean0x",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dean0x/showme.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dean0x/showme/issues"
+  },
+  "homepage": "https://github.com/dean0x/showme#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

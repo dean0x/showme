@@ -6,24 +6,24 @@ describe('MCP Tools Registration', () => {
     await expect(createServer()).resolves.toBeDefined();
   });
 
-  it('should return Result<McpServer, ServerCreationError>', async () => {
+  it('should return Result<Server, ServerCreationError>', async () => {
     const result = await createServer();
     
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value).toBeDefined();
-      expect(result.value.constructor.name).toBe('McpServer');
+      expect(result.value.constructor.name).toBe('Server');
     }
   });
 
-  it('should have server property for low-level access', async () => {
+  it('should have proper server instance', async () => {
     const result = await createServer();
     
     expect(result.ok).toBe(true);
     if (result.ok) {
-      // McpServer exposes underlying Server instance
-      expect(result.value.server).toBeDefined();
-      expect(result.value.server.constructor.name).toBe('Server');
+      // Server instance is returned directly
+      expect(result.value).toBeDefined();
+      expect(result.value.constructor.name).toBe('Server');
     }
   });
 

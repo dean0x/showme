@@ -11,8 +11,9 @@ export enum ErrorCategory {
   VALIDATION = 'VALIDATION',
   FILE_SYSTEM = 'FILE_SYSTEM',
   GIT_OPERATION = 'GIT_OPERATION',
-  HTML_GENERATION = 'HTML_GENERATION',
-  HTTP_SERVER = 'HTTP_SERVER',
+  VSCODE_EXECUTOR = 'VSCODE_EXECUTOR',
+  SHOW_FILE = 'SHOW_FILE',
+  SHOW_DIFF = 'SHOW_DIFF',
   RESOURCE_MANAGEMENT = 'RESOURCE_MANAGEMENT'
 }
 
@@ -107,14 +108,14 @@ export class GitOperationError extends ShowMeError {
 }
 
 /**
- * HTML generation errors
+ * VS Code executor errors
  */
-export class HTMLGenerationError extends ShowMeError {
+export class VSCodeExecutorError extends ShowMeError {
   constructor(message: string, code: string, context?: Record<string, unknown>, cause?: Error) {
     super({
       message,
       code,
-      category: ErrorCategory.HTML_GENERATION,
+      category: ErrorCategory.VSCODE_EXECUTOR,
       context,
       cause
     });
@@ -122,14 +123,29 @@ export class HTMLGenerationError extends ShowMeError {
 }
 
 /**
- * HTTP server errors
+ * Show file handler errors
  */
-export class HTTPServerError extends ShowMeError {
+export class ShowFileError extends ShowMeError {
   constructor(message: string, code: string, context?: Record<string, unknown>, cause?: Error) {
     super({
       message,
       code,
-      category: ErrorCategory.HTTP_SERVER,
+      category: ErrorCategory.SHOW_FILE,
+      context,
+      cause
+    });
+  }
+}
+
+/**
+ * Show diff handler errors
+ */
+export class ShowDiffError extends ShowMeError {
+  constructor(message: string, code: string, context?: Record<string, unknown>, cause?: Error) {
+    super({
+      message,
+      code,
+      category: ErrorCategory.SHOW_DIFF,
       context,
       cause
     });
@@ -167,12 +183,16 @@ export class ErrorFactory {
     return new GitOperationError(message, code, context, cause);
   }
 
-  static htmlGeneration(message: string, code: string, context?: Record<string, unknown>, cause?: Error): HTMLGenerationError {
-    return new HTMLGenerationError(message, code, context, cause);
+  static vsCodeExecutor(message: string, code: string, context?: Record<string, unknown>, cause?: Error): VSCodeExecutorError {
+    return new VSCodeExecutorError(message, code, context, cause);
   }
 
-  static httpServer(message: string, code: string, context?: Record<string, unknown>, cause?: Error): HTTPServerError {
-    return new HTTPServerError(message, code, context, cause);
+  static showFile(message: string, code: string, context?: Record<string, unknown>, cause?: Error): ShowFileError {
+    return new ShowFileError(message, code, context, cause);
+  }
+
+  static showDiff(message: string, code: string, context?: Record<string, unknown>, cause?: Error): ShowDiffError {
+    return new ShowDiffError(message, code, context, cause);
   }
 
   static resourceManagement(message: string, code: string, context?: Record<string, unknown>, cause?: Error): ResourceManagementError {
@@ -190,10 +210,12 @@ export class ErrorFactory {
         return new FileSystemError(error.message, code, context, error);
       case ErrorCategory.GIT_OPERATION:
         return new GitOperationError(error.message, code, context, error);
-      case ErrorCategory.HTML_GENERATION:
-        return new HTMLGenerationError(error.message, code, context, error);
-      case ErrorCategory.HTTP_SERVER:
-        return new HTTPServerError(error.message, code, context, error);
+      case ErrorCategory.VSCODE_EXECUTOR:
+        return new VSCodeExecutorError(error.message, code, context, error);
+      case ErrorCategory.SHOW_FILE:
+        return new ShowFileError(error.message, code, context, error);
+      case ErrorCategory.SHOW_DIFF:
+        return new ShowDiffError(error.message, code, context, error);
       case ErrorCategory.RESOURCE_MANAGEMENT:
         return new ResourceManagementError(error.message, code, context, error);
     }

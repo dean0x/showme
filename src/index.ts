@@ -1,7 +1,16 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+#!/usr/bin/env node
+
+/**
+ * ShowMe MCP Server - VS Code Integration
+ * Following engineering principles: DI, Result types, resource cleanup
+ */
+
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { HTTPServer } from "./server/http-server.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { ShowFileHandler, type ShowFileRequest } from "./handlers/show-file-handler.js";
 import { ShowDiffHandler, type ShowDiffRequest } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
@@ -21,94 +30,156 @@ export class ServerCreationError extends Error {
   }
 }
 
-const ShowFileArgsSchema = z.object({
-  path: z.string().describe("File path relative to workspace"),
-  line_highlight: z.number().optional().describe("Optional line number to highlight and jump to"),
-});
-
-const ShowDiffArgsSchema = z.object({
-  base: z.string().optional().describe("Base commit/branch (default: HEAD)"),
-  target: z.string().optional().describe("Target commit/branch (default: working)"),
-  files: z.array(z.string()).optional().describe("Specific files to include in diff"),
-});
-
-export async function createServer(resourceManager?: ResourceManager): Promise<Result<McpServer, ServerCreationError>> {
+export async function createServer(resourceManager?: ResourceManager): Promise<Result<Server, ServerCreationError>> {
   const logger = new ConsoleLogger();
   const resources = resourceManager || new ResourceManager(logger);
   
   try {
-    // Use dynamic port allocation (0) in tests, fallback to 3847 only if explicitly set
-    const envPort = process.env.SHOWME_HTTP_PORT;
-    const port = envPort ? parseInt(envPort) : 0; // 0 = dynamic port allocation
-    const httpServer = resources.register(new HTTPServer(port, logger));
+    // Create handlers - no HTTP server needed for VS Code integration
+    const showFileHandler = ShowFileHandler.create(logger);
+    const showDiffHandler = ShowDiffHandler.create(logger);
     
-    // Start HTTP server and wait for it to be ready
-    const httpResult = await httpServer.start();
-    if (!httpResult.ok) {
-      return {
-        ok: false,
-        error: new ServerCreationError(
-          `Failed to start HTTP server: ${httpResult.error.message}`,
-          httpResult.error.code
-        )
-      };
-    }
-
-    logger.info('HTTP server started successfully', { 
-      httpPort: httpResult.value.port,
-      baseUrl: httpResult.value.baseUrl 
+    // Register handlers for cleanup
+    resources.register({
+      async dispose() {
+        await showDiffHandler.dispose();
+        logger.debug('Handlers disposed');
+      }
     });
-
-    // Create handlers after HTTP server is ready
-    const showFileHandlerResult = await ShowFileHandler.create(httpServer, logger);
-    if (!showFileHandlerResult.ok) {
-      return {
-        ok: false,
-        error: new ServerCreationError(
-          `Failed to create ShowFileHandler: ${showFileHandlerResult.error.message}`,
-          'HANDLER_CREATION_FAILED'
-        )
-      };
-    }
     
-    const showDiffHandler = ShowDiffHandler.create(httpServer, logger);
-    
-    const server = new McpServer(
+    const server = new Server(
       {
         name: "showme-mcp",
         version: "1.0.0",
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
       }
     );
     
-    // Register showme.file tool
-    server.tool(
-      "showme.file",
-      "Display a file in browser with syntax highlighting", 
-      ShowFileArgsSchema.shape,
-      async (args) => {
-        const request: ShowFileRequest = { path: args.path };
-        if (args.line_highlight !== undefined) request.line_highlight = args.line_highlight;
-        return await showFileHandlerResult.value.handleFileRequest(request);
+    // Register MCP tools
+    server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          {
+            name: 'showme.file',
+            description: 'Open one or multiple files in VS Code with syntax highlighting and optional line highlighting',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                path: {
+                  type: 'string',
+                  description: 'Single file path relative to workspace root (use this OR paths, not both)',
+                },
+                paths: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description: 'Multiple file paths to open as tabs in VS Code',
+                },
+                line_highlight: {
+                  type: 'number',
+                  description: 'Optional line number to highlight and jump to (only works with single path)',
+                  minimum: 1,
+                },
+              },
+            },
+          },
+          {
+            name: 'showme.diff',
+            description: 'Open git diff in VS Code with rich visualization and side-by-side comparison',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                base: {
+                  type: 'string',
+                  description: 'Base commit, branch, or tag for comparison',
+                },
+                target: {
+                  type: 'string', 
+                  description: 'Target commit, branch, or working directory',
+                },
+                files: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description: 'Specific files to include in diff (optional)',
+                },
+              },
+            },
+          },
+        ],
+      };
+    });
+
+    // Handle tool calls
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      if (!args || typeof args !== 'object') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Error: Missing or invalid arguments',
+            },
+          ],
+        };
       }
-    );
-    
-    // Register showme.diff tool
-    server.tool(
-      "showme.diff", 
-      "Display git diff in browser with rich visualization",
-      ShowDiffArgsSchema.shape,
-      async (args) => {
-        const request: ShowDiffRequest = {};
-        if (args.base !== undefined) request.base = args.base;
-        if (args.target !== undefined) request.target = args.target;
-        if (args.files !== undefined) request.files = args.files;
-        return await showDiffHandler.handleDiffRequest(request);
+
+      try {
+        switch (name) {
+          case 'showme.file': {
+            const request: ShowFileRequest = {};
+            
+            // Handle single path or multiple paths
+            if (typeof args.path === 'string') {
+              request.path = args.path;
+            } else if (Array.isArray(args.paths) && args.paths.every(p => typeof p === 'string')) {
+              request.paths = args.paths as string[];
+            }
+            
+            if (typeof args.line_highlight === 'number') {
+              request.line_highlight = args.line_highlight;
+            }
+            return await showFileHandler.handleFileRequest(request);
+          }
+          
+          case 'showme.diff': {
+            const request: ShowDiffRequest = {};
+            if (typeof args.base === 'string') request.base = args.base;
+            if (typeof args.target === 'string') request.target = args.target;
+            if (Array.isArray(args.files) && args.files.every(f => typeof f === 'string')) {
+              request.files = args.files as string[];
+            }
+            return await showDiffHandler.handleDiffRequest(request);
+          }
+          
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`Tool ${name} failed: ${errorMessage}`);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${errorMessage}`,
+            },
+          ],
+        };
       }
-    );
+    });
 
     logger.info('ShowMe MCP server ready', { 
-      httpPort: httpResult.value.port,
-      baseUrl: httpResult.value.baseUrl 
+      integration: 'VS Code',
+      tools: ['showme.file', 'showme.diff']
     });
     
     return {
@@ -166,7 +237,7 @@ async function main(): Promise<void> {
     });
 
     await startServer(resourceManager);
-    console.log("ShowMe MCP server running...");
+    console.log("ShowMe MCP server running with VS Code integration...");
   } catch (error) {
     console.error("Server error:", error);
     await gracefulShutdown();

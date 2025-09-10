@@ -1,0 +1,47 @@
+# Source files
+src/
+tests/
+
+# Config files
+.eslintrc.json
+.prettierrc
+vitest.config.ts
+tsconfig.json
+CLAUDE.md
+
+# Development files
+*.log
+*.tsbuildinfo
+.showme-temp/
+
+# Documentation source
+docs/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Git files
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Development dependencies
+node_modules/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db

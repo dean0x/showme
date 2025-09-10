@@ -1,33 +1,24 @@
-import { HTTPServer } from '../server/http-server.js';
+/**
+ * Show file handler - VS Code integration
+ * Following engineering principles: DI, pipe composition, Result types
+ */
+
 import { PathValidator } from '../utils/path-validator.js';
-import { FileManager, type FileContent } from '../utils/file-manager.js';
-import { HTMLGenerator } from '../utils/html-generator.js';
-import { BrowserOpener } from '../utils/browser-opener.js';
+import { VSCodeExecutor, createVSCodeExecutor } from '../utils/vscode-executor.js';
 import { pipe } from '../utils/pipe.js';
 import { type Logger, ConsoleLogger } from '../utils/logger.js';
 import { type Result } from '../utils/path-validator.js';
+import { ShowFileError } from '../utils/error-handling.js';
 
 declare const performance: { now(): number };
-
-/**
- * Show file handler errors
- */
-export class ShowFileError extends Error {
-  code: string;
-
-  constructor(message: string, code: string) {
-    super(message);
-    this.code = code;
-    this.name = 'ShowFileError';
-  }
-}
 
 /**
  * Show file request arguments
  */
 export interface ShowFileRequest {
-  path: string;
-  line_highlight?: number;
+  path?: string;  // Single file path
+  paths?: string[];  // Multiple file paths
+  line_highlight?: number;  // Only works with single path
 }
 
 /**
@@ -43,49 +34,27 @@ export interface MCPResponse {
 
 /**
  * Handler for showme.file MCP tool
- * Following engineering principles: DI, pipe composition, Result types
+ * Opens files directly in VS Code instead of browser
  */
 export class ShowFileHandler {
   constructor(
-    private readonly httpServer: HTTPServer,
     private readonly pathValidator: PathValidator,
-    private readonly fileManager: FileManager,
-    private readonly htmlGenerator: HTMLGenerator,
-    private readonly browserOpener: BrowserOpener,
+    private readonly vsCodeExecutor: VSCodeExecutor,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
 
   /**
    * Factory method that creates handler with default dependencies
-   * Provides backward compatibility
    */
-  static async create(
-    httpServer: HTTPServer,
-    logger: Logger = new ConsoleLogger()
-  ): Promise<Result<ShowFileHandler, Error>> {
+  static create(logger: Logger = new ConsoleLogger()): ShowFileHandler {
     const pathValidator = new PathValidator();
-    const fileManager = new FileManager(pathValidator, logger);
-    const browserOpener = new BrowserOpener(logger);
+    const vsCodeExecutor = createVSCodeExecutor(undefined, logger);
     
-    const htmlGeneratorResult = await HTMLGenerator.create(logger);
-    if (!htmlGeneratorResult.ok) {
-      return {
-        ok: false,
-        error: new Error(`Failed to create HTMLGenerator: ${htmlGeneratorResult.error.message}`)
-      };
-    }
-    
-    return {
-      ok: true,
-      value: new ShowFileHandler(
-        httpServer,
-        pathValidator,
-        fileManager,
-        htmlGeneratorResult.value,
-        browserOpener,
-        logger
-      )
-    };
+    return new ShowFileHandler(
+      pathValidator,
+      vsCodeExecutor,
+      logger
+    );
   }
 
   /**
@@ -94,32 +63,140 @@ export class ShowFileHandler {
   async handleFileRequest(args: ShowFileRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
-    const result = await pipe(
-      this.validatePath.bind(this),
-      this.readFile.bind(this),
-      this.generateHTML.bind(this),
-      this.serveHTML.bind(this)
-    )(args);
+    // Determine if handling single or multiple files
+    const isMultiple = !!args.paths && args.paths.length > 0;
+    
+    const result = isMultiple 
+      ? await this.handleMultipleFiles(args)
+      : await this.handleSingleFile(args);
 
     const duration = performance.now() - startTime;
     this.logger.info('ShowFile request completed', { 
-      path: args.path, 
+      path: args.path,
+      paths: args.paths,
+      fileCount: args.paths?.length || 1,
       success: result.ok,
       duration: Math.round(duration)
     });
 
     if (result.ok) {
-      // Format success response with browser opening
-      return await this.formatSuccessResponse(result.value);
+      return this.formatSuccessResponse(result.value);
     } else {
       return this.formatErrorResponse(result.error);
     }
   }
 
   /**
+   * Handle single file request
+   */
+  private async handleSingleFile(args: ShowFileRequest): Promise<Result<{
+    path?: string;
+    paths?: string[];
+    validatedPaths?: string[];
+    command: string;
+    line_highlight?: number;
+    success: boolean;
+  }, ShowFileError>> {
+    if (!args.path) {
+      return {
+        ok: false,
+        error: new ShowFileError(
+          'No file path provided',
+          'MISSING_PATH',
+          {}
+        )
+      };
+    }
+
+    return pipe(
+      this.validatePath.bind(this),
+      this.openInVSCode.bind(this)
+    )(args);
+  }
+
+  /**
+   * Handle multiple files request
+   */
+  private async handleMultipleFiles(args: ShowFileRequest): Promise<Result<{
+    path?: string;
+    paths?: string[];
+    validatedPaths?: string[];
+    command: string;
+    line_highlight?: number;
+    success: boolean;
+  }, ShowFileError>> {
+    if (!args.paths || args.paths.length === 0) {
+      return {
+        ok: false,
+        error: new ShowFileError(
+          'No file paths provided',
+          'MISSING_PATHS',
+          {}
+        )
+      };
+    }
+
+    // Validate all paths
+    const validatedPaths: string[] = [];
+    for (const path of args.paths) {
+      const validationResult = await this.pathValidator.validatePath(path, { checkAccess: true });
+      if (!validationResult.ok) {
+        return {
+          ok: false,
+          error: new ShowFileError(
+            `Path validation failed for ${path}: ${validationResult.error.message}`,
+            validationResult.error.code,
+            { path, paths: args.paths }
+          )
+        };
+      }
+      validatedPaths.push(validationResult.value);
+    }
+
+    // Open all files in VS Code
+    const vsCodeResult = await this.vsCodeExecutor.openFiles(validatedPaths);
+
+    if (!vsCodeResult.ok) {
+      return {
+        ok: false,
+        error: new ShowFileError(
+          `Failed to open files in VS Code: ${vsCodeResult.error.message}`,
+          vsCodeResult.error.code,
+          { paths: args.paths, validatedPaths }
+        )
+      };
+    }
+
+    return {
+      ok: true,
+      value: {
+        paths: args.paths,
+        validatedPaths,
+        command: vsCodeResult.value.command,
+        success: vsCodeResult.value.success
+      }
+    };
+  }
+
+  /**
    * Validate file path
    */
-  private async validatePath(args: ShowFileRequest): Promise<Result<{ path: string; validatedPath: string; line_highlight?: number }, ShowFileError>> {
+  private async validatePath(args: ShowFileRequest): Promise<Result<{
+    path?: string;
+    validatedPath?: string;
+    line_highlight?: number;
+  }, ShowFileError>> {
+    if (!args.path) {
+      return {
+        ok: false,
+        error: new ShowFileError(
+          'No file path provided',
+          'MISSING_PATH',
+          {}
+        )
+      };
+    }
+
     const validationResult = await this.pathValidator.validatePath(args.path, { checkAccess: true });
 
     if (!validationResult.ok) {
@@ -127,12 +204,13 @@ export class ShowFileHandler {
         ok: false,
         error: new ShowFileError(
           `Path validation failed: ${validationResult.error.message}`,
-          validationResult.error.code
+          validationResult.error.code,
+          { path: args.path }
         )
       };
     }
 
-    const result: { path: string; validatedPath: string; line_highlight?: number } = {
+    const result: { path?: string; validatedPath?: string; line_highlight?: number } = {
       path: args.path,
       validatedPath: validationResult.value
     };
@@ -146,114 +224,58 @@ export class ShowFileHandler {
   }
 
   /**
-   * Read file content
+   * Open file in VS Code
    */
-  private async readFile(data: { path: string; validatedPath: string; line_highlight?: number }): Promise<Result<{
-    path: string;
-    validatedPath: string;
-    content: string;
-    fileContent: FileContent;
-    line_highlight?: number;
-  }, ShowFileError>> {
-    const readResult = await this.fileManager.readFile(data.validatedPath);
-
-    if (!readResult.ok) {
-      return {
-        ok: false,
-        error: new ShowFileError(
-          `Failed to read file: ${readResult.error.message}`,
-          readResult.error.code
-        )
-      };
-    }
-
-    return {
-      ok: true,
-      value: {
-        ...data,
-        content: readResult.value.content,
-        fileContent: readResult.value
-      }
-    };
-  }
-
-  /**
-   * Generate HTML with syntax highlighting
-   */
-  private async generateHTML(data: {
-    path: string;
-    validatedPath: string;
-    content: string;
-    fileContent: FileContent;
+  private async openInVSCode(data: {
+    path?: string;
+    validatedPath?: string;
     line_highlight?: number;
   }): Promise<Result<{
-    path: string;
-    htmlContent: string;
+    path?: string;
+    paths?: string[];
+    validatedPaths?: string[];
+    command: string;
     line_highlight?: number;
+    success: boolean;
   }, ShowFileError>> {
-    const options = {
-      filename: data.fileContent.filename,
-      filepath: data.fileContent.filepath,
-      content: data.fileContent.content,
-      language: data.fileContent.language,
-      fileSize: data.fileContent.fileSize,
-      lastModified: data.fileContent.lastModified,
-      ...(data.line_highlight && { lineHighlight: data.line_highlight })
-    };
-
-    const htmlResult = await this.htmlGenerator.generateFileView(options);
-
-    if (!htmlResult.ok) {
+    if (!data.validatedPath) {
       return {
         ok: false,
         error: new ShowFileError(
-          `HTML generation failed: ${htmlResult.error.message}`,
-          htmlResult.error.code
+          'No validated path available',
+          'MISSING_VALIDATED_PATH',
+          { path: data.path }
         )
       };
     }
 
-    const result: { path: string; htmlContent: string; line_highlight?: number } = {
-      path: data.path,
-      htmlContent: htmlResult.value
-    };
-    
-    if (data.line_highlight !== undefined) result.line_highlight = data.line_highlight;
+    const vsCodeResult = await this.vsCodeExecutor.openFile(
+      data.validatedPath,
+      data.line_highlight
+    );
 
-    return {
-      ok: true,
-      value: result
-    };
-  }
-
-  /**
-   * Serve HTML via HTTP server
-   */
-  private async serveHTML(data: {
-    path: string;
-    htmlContent: string;
-    line_highlight?: number;
-  }): Promise<Result<{
-    path: string;
-    url: string;
-    line_highlight?: number;
-  }, ShowFileError>> {
-    const filename = data.path.split('/').pop() || 'file.html';
-    const serveResult = await this.httpServer.serveHTML(data.htmlContent, filename);
-
-    if (!serveResult.ok) {
+    if (!vsCodeResult.ok) {
       return {
         ok: false,
         error: new ShowFileError(
-          `Failed to serve HTML: ${serveResult.error.message}`,
-          serveResult.error.code
+          `Failed to open file in VS Code: ${vsCodeResult.error.message}`,
+          vsCodeResult.error.code,
+          { path: data.path, validatedPath: data.validatedPath, line_highlight: data.line_highlight }
         )
       };
     }
 
-    const result: { path: string; url: string; line_highlight?: number } = {
+    const result: {
+      path?: string;
+      paths?: string[];
+      validatedPaths?: string[];
+      command: string;
+      line_highlight?: number;
+      success: boolean;
+    } = {
       path: data.path,
-      url: serveResult.value.url
+      command: vsCodeResult.value.command,
+      success: vsCodeResult.value.success
     };
     
     if (data.line_highlight !== undefined) result.line_highlight = data.line_highlight;
@@ -267,33 +289,43 @@ export class ShowFileHandler {
   /**
    * Format success response
    */
-  private async formatSuccessResponse(data: {
-    path: string;
-    url: string;
+  private formatSuccessResponse(data: {
+    path?: string;
+    paths?: string[];
+    validatedPaths?: string[];
+    command: string;
     line_highlight?: number;
-  }): Promise<MCPResponse> {
-    const lineText = data.line_highlight ? ` (line ${data.line_highlight})` : '';
-    
-    // Attempt to open in browser
-    const openResult = await this.browserOpener.openInBrowser(data.url);
-    if (!openResult.ok) {
-      this.logger.warn('Browser opening failed, continuing with manual URL', {
-        error: openResult.error.message
-      });
+    success: boolean;
+  }): MCPResponse {
+    if (data.paths && data.paths.length > 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `${data.paths.length} files opened in VS Code as tabs`
+          }
+        ]
+      };
+    } else if (data.path) {
+      const lineText = data.line_highlight ? ` at line ${data.line_highlight}` : '';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `File opened in VS Code: ${data.path}${lineText}`
+          }
+        ]
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Files opened in VS Code'
+          }
+        ]
+      };
     }
-    
-    const browserMessage = openResult.ok 
-      ? this.browserOpener.generateOpenMessage(data.url, openResult.value)
-      : `🔗 **URL:** ${data.url}\n\n*Note: Please copy and paste this URL into your browser to view the file.*`;
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `File opened in browser: ${data.path}${lineText}\n\n${browserMessage}`
-        }
-      ]
-    };
   }
 
   /**
@@ -304,7 +336,7 @@ export class ShowFileHandler {
       content: [
         {
           type: 'text',
-          text: `Error: ${error.message}`
+          text: `Error opening file: ${error.message}`
         }
       ]
     };
