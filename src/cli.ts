@@ -13,11 +13,13 @@ import { ConsoleLogger } from "./utils/logger.js";
 interface CliArgs {
   command?: string;
   path?: string;
+  paths?: string[];
   line?: number;
   base?: string;
   target?: string;
   files?: string[];
   help?: boolean;
+  version?: boolean;
 }
 
 function parseArgs(): CliArgs {
@@ -29,6 +31,8 @@ function parseArgs(): CliArgs {
     
     if (arg === '--help' || arg === '-h') {
       parsed.help = true;
+    } else if (arg === '--version' || arg === '-v') {
+      parsed.version = true;
     } else if (arg === '--line' || arg === '-l') {
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
@@ -58,8 +62,16 @@ function parseArgs(): CliArgs {
     } else if (!arg.startsWith('-')) {
       if (!parsed.command) {
         parsed.command = arg;
-      } else if (!parsed.path && parsed.command === 'file') {
-        parsed.path = arg;
+      } else if (parsed.command === 'file') {
+        // Collect all remaining non-flag arguments as file paths
+        if (!parsed.paths) {
+          parsed.paths = [];
+        }
+        parsed.paths.push(arg);
+        // Also set the first path as the single path for backward compatibility
+        if (!parsed.path) {
+          parsed.path = arg;
+        }
       }
     }
   }
@@ -72,15 +84,17 @@ function showHelp(): void {
 ShowMe CLI - Test interface for VS Code integration
 
 Usage:
-  showme file <path> [options]     Open file in VS Code
+  showme file <path...> [options]  Open file(s) in VS Code
   showme diff [options]            Open git diff in VS Code
 
 File command:
   showme file src/index.ts         Open file in VS Code
   showme file src/index.ts -l 42   Open file and jump to line 42
+  showme file src/*.ts             Open multiple files as tabs
+  showme file index.ts utils.ts    Open multiple files as tabs
 
   Options:
-    -l, --line <number>            Line number to highlight and jump to
+    -l, --line <number>            Line number to highlight and jump to (single file only)
 
 Diff command:
   showme diff                      Show working directory changes
@@ -95,6 +109,7 @@ Diff command:
 
 Global options:
   -h, --help                       Show this help message
+  -v, --version                    Show version information
 
 Environment variables:
   SHOWME_EDITOR                    Editor command (default: code)
@@ -102,6 +117,7 @@ Environment variables:
 Examples:
   showme file README.md
   showme file src/main.ts --line 100
+  showme file src/index.ts src/utils.ts README.md
   showme diff
   showme diff --base main --target feature-branch
   showme diff --files src/utils.ts src/main.ts
@@ -109,17 +125,25 @@ Examples:
 }
 
 async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<void> {
-  if (!args.path) {
-    console.error('Error: File path is required');
-    console.error('Usage: showme file <path> [--line <number>]');
+  if (!args.path && (!args.paths || args.paths.length === 0)) {
+    console.error('Error: File path(s) required');
+    console.error('Usage: showme file <path...> [--line <number>]');
     process.exit(1);
   }
 
   const handler = ShowFileHandler.create(logger);
-  const result = await handler.handleFileRequest({
-    path: args.path,
-    line_highlight: args.line
-  });
+  
+  // Determine if we're handling single or multiple files
+  const isMultiple = args.paths && args.paths.length > 1;
+  
+  const result = await handler.handleFileRequest(
+    isMultiple
+      ? { paths: args.paths }
+      : { 
+          path: args.path || (args.paths && args.paths[0]),
+          line_highlight: args.line
+        }
+  );
 
   console.log(result.content[0].text);
 }
@@ -138,6 +162,13 @@ async function handleDiffCommand(args: CliArgs, logger: ConsoleLogger): Promise<
 async function main(): Promise<void> {
   const args = parseArgs();
   const logger = new ConsoleLogger();
+
+  if (args.version) {
+    // Read version from package.json
+    const packageInfo = await import('../package.json', { with: { type: 'json' } });
+    console.log(`showme version ${packageInfo.default.version}`);
+    process.exit(0);
+  }
 
   if (args.help || !args.command) {
     showHelp();

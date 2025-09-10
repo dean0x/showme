@@ -107,15 +107,16 @@ The package includes a CLI tool for testing the functionality:
 
 ### File Commands
 ```bash
-# Open file
+# Open single file
 showme file README.md
 
 # Open file at specific line
 showme file src/index.ts --line 42
 showme file src/main.ts -l 100
 
-# Open multiple files
-showme file src/index.ts package.json README.md
+# Open multiple files as tabs
+showme file src/index.ts src/utils.ts README.md
+showme file src/*.ts  # Using shell expansion
 ```
 
 ### Diff Commands
@@ -138,18 +139,13 @@ showme diff -f package.json
 
 ### Other Commands
 ```bash
-# Show version
-showme --version
-showme -v
-
 # Show help
 showme --help
 showme -h
-showme help
 
-# Show command-specific help
-showme file --help
-showme diff --help
+# Show version
+showme --version
+showme -v
 ```
 
 ## Architecture
@@ -164,21 +160,20 @@ The server follows clean architecture principles:
 
 ### Project Structure
 ```
-showme-mcp/
+showme/
 ├── src/
 │   ├── index.ts           # MCP server entry point
 │   ├── cli.ts            # CLI tool entry point
 │   ├── handlers/         # MCP tool handlers
 │   │   ├── show-file-handler.ts
 │   │   └── show-diff-handler.ts
-│   └── utils/            # Utilities and services
-│       ├── vscode-executor.ts
-│       ├── git-detector.ts
-│       ├── git-diff-generator.ts
-│       └── ...
-├── docs/                 # Documentation
-├── tests/               # Test files
-└── dist/                # Compiled output
+│   ├── utils/            # Utilities and services
+│   │   ├── vscode-executor.ts
+│   │   ├── git-detector.ts
+│   │   ├── git-diff-generator.ts
+│   │   └── ...
+│   └── __tests__/        # Test files
+└── dist/                # Compiled output (generated)
 ```
 
 ## Requirements
