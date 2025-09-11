@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version flag (`--version`, `-v`) to display CLI version
 
 ### Changed
+- Renamed MCP tools from `showme.file` and `showme.diff` to `ShowMe` and `ShowMeTheDiff`
+- Renamed handler methods to match tool names
 - Removed `cwd` requirement from MCP configuration - now uses current working directory
 - Allow absolute paths to any file on the system
 - Path validation now only blocks directory traversal for relative paths that escape workspace
@@ -30,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Line number navigation for jumping to specific lines
 - Support for multiple editors (VS Code, Cursor, VSCodium)
 - CLI tool for testing functionality
-- MCP tools: `showme.file` and `showme.diff`
+- MCP tools: `ShowMe` and `ShowMeTheDiff`
 - Clean architecture with Result types and dependency injection
 - Comprehensive error handling with structured logging
 

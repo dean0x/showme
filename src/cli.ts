@@ -136,7 +136,7 @@ async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<
   // Determine if we're handling single or multiple files
   const isMultiple = args.paths && args.paths.length > 1;
   
-  const result = await handler.handleFileRequest(
+  const result = await handler.ShowMe(
     isMultiple
       ? { paths: args.paths }
       : { 
@@ -150,7 +150,7 @@ async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<
 
 async function handleDiffCommand(args: CliArgs, logger: ConsoleLogger): Promise<void> {
   const handler = ShowDiffHandler.create(logger);
-  const result = await handler.handleDiffRequest({
+  const result = await handler.ShowMeTheDiff({
     base: args.base,
     target: args.target,
     files: args.files

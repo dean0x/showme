@@ -64,7 +64,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
       return {
         tools: [
           {
-            name: 'showme.file',
+            name: 'ShowMe',
             description: 'Open one or multiple files in VS Code with syntax highlighting and optional line highlighting',
             inputSchema: {
               type: 'object',
@@ -89,7 +89,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
             },
           },
           {
-            name: 'showme.diff',
+            name: 'ShowMeTheDiff',
             description: 'Open git diff in VS Code with rich visualization and side-by-side comparison',
             inputSchema: {
               type: 'object',
@@ -133,7 +133,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
 
       try {
         switch (name) {
-          case 'showme.file': {
+          case 'ShowMe': {
             const request: ShowFileRequest = {};
             
             // Handle single path or multiple paths
@@ -146,17 +146,17 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
             if (typeof args.line_highlight === 'number') {
               request.line_highlight = args.line_highlight;
             }
-            return await showFileHandler.handleFileRequest(request);
+            return await showFileHandler.ShowMe(request);
           }
           
-          case 'showme.diff': {
+          case 'ShowMeTheDiff': {
             const request: ShowDiffRequest = {};
             if (typeof args.base === 'string') request.base = args.base;
             if (typeof args.target === 'string') request.target = args.target;
             if (Array.isArray(args.files) && args.files.every(f => typeof f === 'string')) {
               request.files = args.files as string[];
             }
-            return await showDiffHandler.handleDiffRequest(request);
+            return await showDiffHandler.ShowMeTheDiff(request);
           }
           
           default:
@@ -179,7 +179,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
 
     logger.info('ShowMe MCP server ready', { 
       integration: 'VS Code',
-      tools: ['showme.file', 'showme.diff']
+      tools: ['ShowMe', 'ShowMeTheDiff']
     });
     
     return {

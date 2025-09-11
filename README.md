@@ -54,7 +54,7 @@ Or if installed globally:
 
 ## MCP Tools
 
-### `showme.file`
+### `ShowMe`
 Open one or multiple files in VS Code.
 
 **Parameters:**
@@ -65,16 +65,16 @@ Open one or multiple files in VS Code.
 **Examples:**
 ```typescript
 // Single file
-await showme.file({ path: "src/index.ts" })
+await ShowMe({ path: "src/index.ts" })
 
 // Single file with line highlight
-await showme.file({ path: "src/utils.ts", line_highlight: 42 })
+await ShowMe({ path: "src/utils.ts", line_highlight: 42 })
 
 // Multiple files
-await showme.file({ paths: ["src/index.ts", "package.json", "README.md"] })
+await ShowMe({ paths: ["src/index.ts", "package.json", "README.md"] })
 ```
 
-### `showme.diff`
+### `ShowMeTheDiff`
 Display git diffs with rich visualization.
 
 **Parameters:**
@@ -85,16 +85,16 @@ Display git diffs with rich visualization.
 **Examples:**
 ```typescript
 // Working directory changes
-await showme.diff({})
+await ShowMeTheDiff({})
 
 // Compare with branch
-await showme.diff({ base: "main" })
+await ShowMeTheDiff({ base: "main" })
 
 // Compare commits
-await showme.diff({ base: "HEAD~2", target: "HEAD" })
+await ShowMeTheDiff({ base: "HEAD~2", target: "HEAD" })
 
 // Specific file diff (side-by-side view)
-await showme.diff({ 
+await ShowMeTheDiff({ 
   base: "HEAD~1", 
   target: "HEAD",
   files: ["src/index.ts"]
