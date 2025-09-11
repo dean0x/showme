@@ -1,7 +1,7 @@
 {
   "name": "showme",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for opening files and git diffs directly in VS Code with syntax highlighting",
+  "description": "MCP server providing ShowFile and ShowDiff tools for VS Code integration with syntax highlighting",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

@@ -1,6 +1,6 @@
 # ShowMe MCP Server
 
-A Model Context Protocol (MCP) server that enables AI assistants to open files and display git diffs directly in VS Code with syntax highlighting.
+A Model Context Protocol (MCP) server that enables AI assistants to open files and display git diffs directly in VS Code with syntax highlighting. Provides two MCP tools: `ShowFile` for opening files and `ShowDiff` for visualizing git differences.
 
 ## Features
 
@@ -10,6 +10,13 @@ A Model Context Protocol (MCP) server that enables AI assistants to open files a
 - 🔍 **Git Diff Visualization** - Side-by-side diff comparisons for single files
 - 📍 **Line Navigation** - Jump to specific line numbers
 - ⚡ **Fast & Lightweight** - Minimal dependencies, instant response
+
+## Quick Reference
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `ShowFile` | Open files in VS Code | `ShowFile({ path: "README.md" })` |
+| `ShowDiff` | Display git diffs | `ShowDiff({ base: "main" })` |
 
 ## Installation
 
