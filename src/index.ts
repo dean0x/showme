@@ -64,7 +64,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
       return {
         tools: [
           {
-            name: 'showme.file',
+            name: 'ShowFile',
             description: 'Open one or multiple files in VS Code with syntax highlighting and optional line highlighting',
             inputSchema: {
               type: 'object',
@@ -89,7 +89,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
             },
           },
           {
-            name: 'showme.diff',
+            name: 'ShowDiff',
             description: 'Open git diff in VS Code with rich visualization and side-by-side comparison',
             inputSchema: {
               type: 'object',
@@ -133,7 +133,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
 
       try {
         switch (name) {
-          case 'showme.file': {
+          case 'ShowFile': {
             const request: ShowFileRequest = {};
             
             // Handle single path or multiple paths
@@ -149,7 +149,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
             return await showFileHandler.handleFileRequest(request);
           }
           
-          case 'showme.diff': {
+          case 'ShowDiff': {
             const request: ShowDiffRequest = {};
             if (typeof args.base === 'string') request.base = args.base;
             if (typeof args.target === 'string') request.target = args.target;
@@ -179,7 +179,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
 
     logger.info('ShowMe MCP server ready', { 
       integration: 'VS Code',
-      tools: ['showme.file', 'showme.diff']
+      tools: ['ShowFile', 'ShowDiff']
     });
     
     return {

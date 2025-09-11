@@ -33,7 +33,7 @@ export interface MCPResponse {
 }
 
 /**
- * Handler for showme.file MCP tool
+ * Handler for ShowFile MCP tool
  * Opens files directly in VS Code instead of browser
  */
 export class ShowFileHandler {
@@ -58,7 +58,7 @@ export class ShowFileHandler {
   }
 
   /**
-   * Handle showme.file request using pipe composition
+   * Handle ShowFile request using pipe composition
    */
   async handleFileRequest(args: ShowFileRequest): Promise<MCPResponse> {
     const startTime = performance.now();
