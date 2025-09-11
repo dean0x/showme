@@ -33,7 +33,7 @@ export interface MCPResponse {
 }
 
 /**
- * Handler for ShowMe MCP tool
+ * Handler for showme.file MCP tool
  * Opens files directly in VS Code instead of browser
  */
 export class ShowFileHandler {
@@ -58,9 +58,9 @@ export class ShowFileHandler {
   }
 
   /**
-   * Handle ShowMe request using pipe composition
+   * Handle showme.file request using pipe composition
    */
-  async ShowMe(args: ShowFileRequest): Promise<MCPResponse> {
+  async handleFileRequest(args: ShowFileRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
     // Determine if handling single or multiple files
@@ -71,7 +71,7 @@ export class ShowFileHandler {
       : await this.handleSingleFile(args);
 
     const duration = performance.now() - startTime;
-    this.logger.info('ShowMe request completed', { 
+    this.logger.info('ShowFile request completed', { 
       path: args.path,
       paths: args.paths,
       fileCount: args.paths?.length || 1,

@@ -35,7 +35,7 @@ export interface MCPResponse {
 }
 
 /**
- * Handler for ShowMeTheDiff MCP tool
+ * Handler for showme.diff MCP tool
  * Opens git diffs directly in VS Code instead of browser
  */
 export class ShowDiffHandler {
@@ -66,9 +66,9 @@ export class ShowDiffHandler {
   }
 
   /**
-   * Handle ShowMeTheDiff request using pipe composition
+   * Handle showme.diff request using pipe composition
    */
-  async ShowMeTheDiff(args: ShowDiffRequest): Promise<MCPResponse> {
+  async handleDiffRequest(args: ShowDiffRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
     const result = await pipe(
@@ -78,7 +78,7 @@ export class ShowDiffHandler {
     )({ ...args, workingPath: process.cwd() });
 
     const duration = performance.now() - startTime;
-    this.logger.info('ShowMeTheDiff request completed', { 
+    this.logger.info('ShowDiff request completed', { 
       success: result.ok,
       filesCount: args.files?.length || 0,
       duration: Math.round(duration)
