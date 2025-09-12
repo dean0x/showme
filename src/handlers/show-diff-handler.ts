@@ -278,14 +278,19 @@ export class ShowDiffHandler {
       const tempFiles: TempFile[] = [];
       let vsCodeResult: Result<VSCodeResult, VSCodeExecutorError>;
 
-      // For specific files, open each as a separate diff tab
-      if (data.files && data.files.length > 0) {
+      // Get the list of files to diff - either from user input or from diff result
+      const filesToDiff = data.files && data.files.length > 0 
+        ? data.files 
+        : data.diffResult.files.map(f => f.path);
+      
+      // For specific files or files from diff result, open each as a separate diff tab
+      if (filesToDiff.length > 0) {
         // Open each file as a separate diff tab
         let lastCommand = '';
         let allSuccess = true;
         
-        for (let i = 0; i < data.files.length; i++) {
-          const filepath = data.files[i];
+        for (let i = 0; i < filesToDiff.length; i++) {
+          const filepath = filesToDiff[i];
           const isFirstOperation = i === 0;
           if (data.staged) {
             // For staged changes: compare HEAD to staged (index) version
@@ -365,7 +370,7 @@ export class ShowDiffHandler {
             error: new ShowDiffError(
               'Failed to open any diff tabs',
               'NO_DIFFS_OPENED',
-              { files: data.files }
+              { files: filesToDiff }
             )
           };
         }
