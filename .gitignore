@@ -56,6 +56,7 @@ tsconfig.tsbuildinfo
 .vitest/
 
 # Local configuration
+.claude/
 *.local.json
 .mcp.json
 CLAUDE.md
