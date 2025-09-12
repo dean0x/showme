@@ -219,15 +219,6 @@ showme/
 - VS Code installed and accessible via `code` command
 - Git (for diff functionality)
 
-## Supported Editors
-
-The server automatically detects and supports:
-- VS Code
-- VS Code Insiders  
-- Cursor
-- VSCodium
-- Any editor accessible via `code` command
-
 ## Development
 
 ```bash
@@ -293,12 +284,6 @@ If you get an error about `code` command not being found:
 2. Press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
 3. Type "Shell Command: Install 'code' command in PATH"
 4. Restart your terminal
-
-### Permission denied
-If you get permission errors when installing globally:
-```bash
-sudo npm install -g @dean0x/showme
-```
 
 ### MCP server not connecting
 1. Check your MCP client configuration file
