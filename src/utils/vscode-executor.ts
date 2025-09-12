@@ -155,10 +155,11 @@ export class VSCodeExecutor {
   async openDiff(
     oldFile: string,
     newFile: string,
-    _title?: string
+    _title?: string,
+    reuseWindow?: boolean
   ): Promise<Result<VSCodeResult, VSCodeExecutorError>> {
     try {
-      const args = this.buildDiffArgs(oldFile, newFile);
+      const args = this.buildDiffArgs(oldFile, newFile, reuseWindow);
       const command = this.config.command;
 
       this.logger.info('Opening diff in VS Code', { 
@@ -249,10 +250,15 @@ export class VSCodeExecutor {
   /**
    * Build arguments for opening a diff
    */
-  private buildDiffArgs(oldFile: string, newFile: string): string[] {
+  private buildDiffArgs(oldFile: string, newFile: string, reuseWindow?: boolean): string[] {
     const args: string[] = [];
     
-    if (this.config.newWindow) {
+    // Handle window reuse/new window logic
+    if (reuseWindow) {
+      // Explicitly reuse the existing window for multiple diffs
+      args.push('--reuse-window');
+    } else if (this.config.newWindow) {
+      // Only add new-window if not reusing
       args.push('--new-window');
     }
     
