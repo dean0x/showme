@@ -9,6 +9,8 @@
 import { ShowFileHandler } from "./handlers/show-file-handler.js";
 import { ShowDiffHandler } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
+import { startServer } from "./index.js";
+import { ResourceManager } from "./utils/resource-manager.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -90,6 +92,11 @@ function parseArgs(): CliArgs {
         if (!parsed.path) {
           parsed.path = arg;
         }
+      } else if (parsed.command === 'mcp') {
+        // For mcp command, treat the next arg as subcommand
+        if (!parsed.path) {
+          parsed.path = arg;
+        }
       }
     }
   }
@@ -104,6 +111,7 @@ ShowMe CLI - Test interface for VS Code integration
 Usage:
   showme file <path...> [options]  Open file(s) in VS Code
   showme diff [options]            Open git diff in VS Code
+  showme mcp start                 Start MCP server
 
 File command:
   showme file src/index.ts         Open file in VS Code
@@ -213,6 +221,23 @@ async function main(): Promise<void> {
       case 'diff':
         await handleDiffCommand(args, logger);
         break;
+      
+      case 'mcp': {
+        // Check for 'start' subcommand
+        const subcommand = args.path || args.paths?.[0];
+        if (subcommand === 'start') {
+          // Start the MCP server
+          const resourceManager = new ResourceManager(logger);
+          await startServer(resourceManager);
+          // Server will handle its own lifecycle, we don't exit here
+          return;
+        } else {
+          console.error(`Error: Unknown mcp subcommand '${subcommand}'`);
+          console.error("Use 'showme mcp start' to start the MCP server");
+          process.exit(1);
+        }
+        break;
+      }
       
       default:
         console.error(`Error: Unknown command '${args.command}'`);

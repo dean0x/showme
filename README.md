@@ -50,7 +50,7 @@ npm install @dean0x/showme
   "mcpServers": {
     "showme": {
       "command": "npx",
-      "args": ["@dean0x/showme"]
+      "args": ["-y", "@dean0x/showme", "mcp", "start"]
     }
   }
 }

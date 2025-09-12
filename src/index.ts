@@ -277,5 +277,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Run main when executed as a CLI
-main();
+// Only run main if this is the entry point (not imported as module)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}
