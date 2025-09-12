@@ -2,6 +2,18 @@
 
 A Model Context Protocol (MCP) server that enables coding agents to open files and display git diffs directly in VS Code with syntax highlighting. Provides two MCP tools: `ShowFile` for opening files and `ShowDiff` for visualizing git differences.
 
+## Why ShowMe?
+
+The rise of CLI-based coding agents has fundamentally changed how we write code. We're no longer working *in* our IDEs—we're working *with* AI agents through conversational interfaces. This shift creates a new challenge: how do we quickly review the code our agents are writing?
+
+ShowMe bridges this gap. Instead of keeping your IDE open and constantly switching contexts, you can stay focused on your conversation with the agent. When you need to see something, just ask:
+
+- **"Show me index.js"** - Instantly opens the file in VS Code
+- **"Show me what you just changed"** - Displays a rich diff view
+- **"Show me the main components"** - Opens multiple files as tabs
+
+Review what you need, close the window, and continue the conversation. It's ephemeral, on-demand code viewing designed for the age of AI-assisted development.
+
 ## Features
 
 - 🎯 **Direct VS Code Integration** - Opens files and diffs directly in your editor
