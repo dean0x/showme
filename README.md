@@ -1,6 +1,6 @@
 # ShowMe MCP Server
 
-A Model Context Protocol (MCP) server that enables AI assistants to open files and display git diffs directly in VS Code with syntax highlighting. Provides two MCP tools: `ShowFile` for opening files and `ShowDiff` for visualizing git differences.
+A Model Context Protocol (MCP) server that enables coding agents to open files and display git diffs directly in VS Code with syntax highlighting. Provides two MCP tools: `ShowFile` for opening files and `ShowDiff` for visualizing git differences.
 
 ## Features
 
@@ -32,7 +32,7 @@ npm install showme
 
 ## MCP Configuration
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your MCP client configuration:
 
 ```json
 {
@@ -57,7 +57,7 @@ Or if installed globally:
 }
 ```
 
-**Note:** The server uses the current working directory. Claude will automatically run it in your project folder when you open a project.
+**Note:** The server uses the current working directory and will run in your project folder.
 
 ## MCP Tools
 
@@ -302,9 +302,9 @@ sudo npm install -g showme
 ```
 
 ### MCP server not connecting
-1. Check your Claude Desktop configuration file
+1. Check your MCP client configuration file
 2. Ensure the command is correctly spelled
-3. Restart Claude Desktop after configuration changes
+3. Restart your MCP client after configuration changes
 
 ## License
 
@@ -312,7 +312,7 @@ MIT - See [LICENSE](LICENSE) file for details
 
 ## Contributing
 
-Contributions are welcome! Please follow the engineering principles outlined in [CLAUDE.md](CLAUDE.md).
+Contributions are welcome! Please follow the project's engineering principles and code style.
 
 ## Support
 
@@ -320,4 +320,4 @@ For issues and feature requests, please visit our [GitHub Issues](https://github
 
 ## Acknowledgments
 
-Built for use with [Claude Desktop](https://claude.ai) and the [Model Context Protocol](https://modelcontextprotocol.io).
+Built using the [Model Context Protocol](https://modelcontextprotocol.io) specification.
