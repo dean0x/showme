@@ -9,6 +9,15 @@
 import { ShowFileHandler } from "./handlers/show-file-handler.js";
 import { ShowDiffHandler } from "./handlers/show-diff-handler.js";
 import { ConsoleLogger } from "./utils/logger.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Get package version
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8"));
+const VERSION = packageJson.version;
 
 interface CliArgs {
   command?: string;
@@ -186,9 +195,7 @@ async function main(): Promise<void> {
   const logger = new ConsoleLogger();
 
   if (args.version) {
-    // Read version from package.json
-    const packageInfo = await import('../package.json', { with: { type: 'json' } });
-    console.log(`showme version ${packageInfo.default.version}`);
+    console.log(`showme version ${VERSION}`);
     process.exit(0);
   }
 

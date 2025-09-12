@@ -16,6 +16,15 @@ import { ShowDiffHandler, type ShowDiffRequest } from "./handlers/show-diff-hand
 import { ConsoleLogger } from "./utils/logger.js";
 import { ResourceManager } from "./utils/resource-manager.js";
 import { type Result } from "./utils/path-validator.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Get package version
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8"));
+const VERSION = packageJson.version;
 
 /**
  * Server creation error
@@ -229,6 +238,12 @@ export async function startServer(resourceManager?: ResourceManager): Promise<vo
 
 // Main entry point for CLI execution
 async function main(): Promise<void> {
+  // Handle version flag
+  if (process.argv.includes('--version') || process.argv.includes('-v')) {
+    console.log(`showme-mcp version ${VERSION}`);
+    process.exit(0);
+  }
+  
   const logger = new ConsoleLogger();
   const resourceManager = new ResourceManager(logger);
   

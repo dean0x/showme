@@ -30,7 +30,8 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist coverage .showme-temp",
-    "prebuild": "npm run clean && npm run lint && npm run type-check"
+    "prebuild": "npm run clean && npm run lint && npm run type-check",
+    "postbuild": "chmod +x dist/cli.js dist/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
