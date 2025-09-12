@@ -74,7 +74,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
         tools: [
           {
             name: 'ShowFile',
-            description: 'Display files in VS Code for review - supports multiple tabs, syntax highlighting, and jumping to specific lines',
+            description: 'Opens file(s) in VS Code. No summary needed - user will see the file directly',
             inputSchema: {
               type: 'object',
               properties: {
@@ -103,7 +103,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
           },
           {
             name: 'ShowDiff',
-            description: 'Show what changed - opens side-by-side git diffs in VS Code to review modifications',
+            description: 'Opens git diff in VS Code. No summary needed - user will see changes directly',
             inputSchema: {
               type: 'object',
               properties: {
