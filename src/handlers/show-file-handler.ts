@@ -40,7 +40,7 @@ export interface MCPResponse {
 export class ShowFileHandler {
   constructor(
     private readonly pathValidator: PathValidator,
-    private readonly vsCodeExecutor: VSCodeExecutor,
+    private vsCodeExecutor: VSCodeExecutor,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
 
@@ -65,22 +65,16 @@ export class ShowFileHandler {
     const startTime = performance.now();
 
     // Create executor with appropriate config for this request
-    const executor = createVSCodeExecutor({ 
+    this.vsCodeExecutor = createVSCodeExecutor({ 
       reuseWindow: args.reuseWindow || false 
     }, this.logger);
-    
-    // Create a new handler instance with the configured executor
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore -- Using prototype chain to override executor
-    const handler = Object.create(this);
-    handler.vsCodeExecutor = executor;
 
     // Determine if handling single or multiple files
     const isMultiple = !!args.paths && args.paths.length > 0;
     
     const result = isMultiple 
-      ? await handler.handleMultipleFiles(args)
-      : await handler.handleSingleFile(args);
+      ? await this.handleMultipleFiles(args)
+      : await this.handleSingleFile(args);
 
     const duration = performance.now() - startTime;
     this.logger.info('ShowFile request completed', { 

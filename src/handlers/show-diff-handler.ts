@@ -45,7 +45,7 @@ export class ShowDiffHandler {
   constructor(
     private readonly gitDetector: GitDetector,
     private readonly gitDiffGenerator: GitDiffGenerator,
-    private readonly vsCodeExecutor: VSCodeExecutor,
+    private vsCodeExecutor: VSCodeExecutor,
     private readonly tempManager: GitTempManager,
     private readonly logger: Logger = new ConsoleLogger()
   ) {}
@@ -75,20 +75,14 @@ export class ShowDiffHandler {
     const startTime = performance.now();
 
     // Create executor with appropriate config for this request
-    const executor = createVSCodeExecutor({ 
+    this.vsCodeExecutor = createVSCodeExecutor({ 
       reuseWindow: args.reuseWindow || false 
     }, this.logger);
-    
-    // Create a new handler instance with the configured executor
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore -- Using prototype chain to override executor
-    const handler = Object.create(this);
-    handler.vsCodeExecutor = executor;
 
     const result = await pipe(
-      handler.detectRepository.bind(handler),
-      handler.generateDiff.bind(handler),
-      handler.openDiffInVSCode.bind(handler)
+      this.detectRepository.bind(this),
+      this.generateDiff.bind(this),
+      this.openDiffInVSCode.bind(this)
     )({ ...args, workingPath: process.cwd() });
 
     const duration = performance.now() - startTime;

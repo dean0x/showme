@@ -234,13 +234,13 @@ async function main(): Promise<void> {
   
   // Graceful shutdown handler
   const gracefulShutdown = async (): Promise<void> => {
-    console.log('\nReceived shutdown signal. Cleaning up...');
+    logger.info('Received shutdown signal. Cleaning up...');
     try {
       await resourceManager.disposeAll();
-      console.log('All resources cleaned up successfully');
+      logger.info('All resources cleaned up successfully');
       process.exit(0);
     } catch (error) {
-      console.error('Error during cleanup:', error);
+      logger.error('Error during cleanup', { error });
       process.exit(1);
     }
   };
@@ -250,14 +250,14 @@ async function main(): Promise<void> {
     process.on('SIGINT', gracefulShutdown);
     process.on('SIGTERM', gracefulShutdown);
     process.on('uncaughtException', async (error) => {
-      console.error('Uncaught exception:', error);
+      logger.error('Uncaught exception', { error });
       await gracefulShutdown();
     });
 
     await startServer(resourceManager);
-    console.log("ShowMe MCP server running with VS Code integration...");
+    logger.info("ShowMe MCP server running with VS Code integration...");
   } catch (error) {
-    console.error("Server error:", error);
+    logger.error("Server error", { error });
     await gracefulShutdown();
   }
 }
