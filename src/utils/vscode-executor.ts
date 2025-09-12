@@ -16,6 +16,8 @@ export interface VSCodeConfig {
   command: string;
   /** Whether to wait for editor to close */
   wait: boolean;
+  /** Whether to reuse current window instead of opening new one */
+  reuseWindow?: boolean;
 }
 
 /**
@@ -44,10 +46,11 @@ export class VSCodeExecutor {
    */
   async openFile(
     filepath: string, 
-    lineNumber?: number
+    lineNumber?: number,
+    isFirstOperation: boolean = true
   ): Promise<Result<VSCodeResult, VSCodeExecutorError>> {
     try {
-      const args = this.buildFileArgs(filepath, lineNumber);
+      const args = this.buildFileArgs(filepath, lineNumber, isFirstOperation);
       const command = this.config.command;
 
       this.logger.info('Opening file in VS Code', { 
@@ -153,10 +156,11 @@ export class VSCodeExecutor {
   async openDiff(
     oldFile: string,
     newFile: string,
-    _title?: string
+    _title?: string,
+    isFirstOperation: boolean = true
   ): Promise<Result<VSCodeResult, VSCodeExecutorError>> {
     try {
-      const args = this.buildDiffArgs(oldFile, newFile);
+      const args = this.buildDiffArgs(oldFile, newFile, isFirstOperation);
       const command = this.config.command;
 
       this.logger.info('Opening diff in VS Code', { 
@@ -203,11 +207,20 @@ export class VSCodeExecutor {
   /**
    * Build arguments for opening a file
    */
-  private buildFileArgs(filepath: string, lineNumber?: number): string[] {
+  private buildFileArgs(filepath: string, lineNumber?: number, isFirstOperation: boolean = true): string[] {
     const args: string[] = [];
     
-    // Always reuse window to keep files in tabs
-    args.push('--reuse-window');
+    // Window handling logic:
+    // - If reuseWindow is explicitly true: always use --reuse-window
+    // - If reuseWindow is false/undefined and first operation: use --new-window
+    // - If not first operation: use --reuse-window to stay in the new window
+    if (this.config.reuseWindow) {
+      args.push('--reuse-window');
+    } else if (isFirstOperation) {
+      args.push('--new-window');
+    } else {
+      args.push('--reuse-window');
+    }
     
     if (this.config.wait) {
       args.push('--wait');
@@ -229,8 +242,12 @@ export class VSCodeExecutor {
   private buildMultiFileArgs(filepaths: string[]): string[] {
     const args: string[] = [];
     
-    // Always reuse window to keep files in tabs
-    args.push('--reuse-window');
+    // For multiple files: open new window unless explicitly told to reuse
+    if (this.config.reuseWindow) {
+      args.push('--reuse-window');
+    } else {
+      args.push('--new-window');
+    }
     
     if (this.config.wait) {
       args.push('--wait');
@@ -245,11 +262,20 @@ export class VSCodeExecutor {
   /**
    * Build arguments for opening a diff
    */
-  private buildDiffArgs(oldFile: string, newFile: string): string[] {
+  private buildDiffArgs(oldFile: string, newFile: string, isFirstOperation: boolean = true): string[] {
     const args: string[] = [];
     
-    // Always reuse window for diffs to keep them in tabs
-    args.push('--reuse-window');
+    // Window handling logic for diffs:
+    // - If reuseWindow is explicitly true: always use --reuse-window
+    // - If reuseWindow is false/undefined and first operation: use --new-window
+    // - If not first operation: use --reuse-window to stay in the new window
+    if (this.config.reuseWindow) {
+      args.push('--reuse-window');
+    } else if (isFirstOperation) {
+      args.push('--new-window');
+    } else {
+      args.push('--reuse-window');
+    }
     
     if (this.config.wait) {
       args.push('--wait');

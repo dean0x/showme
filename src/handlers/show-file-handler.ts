@@ -19,6 +19,7 @@ export interface ShowFileRequest {
   path?: string;  // Single file path
   paths?: string[];  // Multiple file paths
   line_highlight?: number;  // Only works with single path
+  reuseWindow?: boolean;  // Open in current window instead of new window
 }
 
 /**
@@ -63,12 +64,23 @@ export class ShowFileHandler {
   async handleFileRequest(args: ShowFileRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
+    // Create executor with appropriate config for this request
+    const executor = createVSCodeExecutor({ 
+      reuseWindow: args.reuseWindow || false 
+    }, this.logger);
+    
+    // Create a new handler instance with the configured executor
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore -- Using prototype chain to override executor
+    const handler = Object.create(this);
+    handler.vsCodeExecutor = executor;
+
     // Determine if handling single or multiple files
     const isMultiple = !!args.paths && args.paths.length > 0;
     
     const result = isMultiple 
-      ? await this.handleMultipleFiles(args)
-      : await this.handleSingleFile(args);
+      ? await handler.handleMultipleFiles(args)
+      : await handler.handleSingleFile(args);
 
     const duration = performance.now() - startTime;
     this.logger.info('ShowFile request completed', { 

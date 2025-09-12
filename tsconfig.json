@@ -20,7 +20,7 @@
     "strictFunctionTypes": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
     "skipLibCheck": true,

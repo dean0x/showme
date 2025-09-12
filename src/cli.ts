@@ -20,6 +20,7 @@ interface CliArgs {
   files?: string[];
   staged?: boolean;
   unstaged?: boolean;
+  reuseWindow?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -57,6 +58,8 @@ function parseArgs(): CliArgs {
       parsed.staged = true;
     } else if (arg === '--unstaged' || arg === '-u') {
       parsed.unstaged = true;
+    } else if (arg === '--reuse-window' || arg === '-r') {
+      parsed.reuseWindow = true;
     } else if (arg === '--files' || arg === '-f') {
       parsed.files = [];
       i++;
@@ -101,6 +104,7 @@ File command:
 
   Options:
     -l, --line <number>            Line number to highlight and jump to (single file only)
+    -r, --reuse-window             Open in current VS Code window instead of new window
 
 Diff command:
   showme diff                      Show working directory changes
@@ -116,6 +120,7 @@ Diff command:
     -f, --files <files...>         Specific files to include in diff
     -s, --staged                   Show only staged changes
     -u, --unstaged                 Show only unstaged changes
+    -r, --reuse-window             Open in current VS Code window instead of new window
 
 Global options:
   -h, --help                       Show this help message
@@ -148,10 +153,14 @@ async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<
   
   const result = await handler.handleFileRequest(
     isMultiple
-      ? { paths: args.paths }
+      ? { 
+          paths: args.paths,
+          reuseWindow: args.reuseWindow 
+        }
       : { 
           path: args.path || (args.paths && args.paths[0]),
-          line_highlight: args.line
+          line_highlight: args.line,
+          reuseWindow: args.reuseWindow
         }
   );
 
@@ -165,7 +174,8 @@ async function handleDiffCommand(args: CliArgs, logger: ConsoleLogger): Promise<
     target: args.target,
     files: args.files,
     staged: args.staged,
-    unstaged: args.unstaged
+    unstaged: args.unstaged,
+    reuseWindow: args.reuseWindow
   });
 
   console.log(result.content[0].text);

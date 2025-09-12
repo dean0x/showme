@@ -85,6 +85,10 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
                   description: 'Optional line number to highlight and jump to (only works with single path)',
                   minimum: 1,
                 },
+                reuseWindow: {
+                  type: 'boolean',
+                  description: 'Open in current VS Code window instead of new window (default: false)',
+                },
               },
             },
           },
@@ -116,6 +120,10 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
                 unstaged: {
                   type: 'boolean',
                   description: 'Show only unstaged changes (optional)',
+                },
+                reuseWindow: {
+                  type: 'boolean',
+                  description: 'Open in current VS Code window instead of new window (default: false)',
                 },
               },
             },

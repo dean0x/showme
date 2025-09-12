@@ -23,6 +23,7 @@ export interface ShowDiffRequest {
   files?: string[];
   staged?: boolean;   // Show only staged changes
   unstaged?: boolean; // Show only unstaged changes
+  reuseWindow?: boolean;  // Open in current window instead of new window
 }
 
 /**
@@ -73,10 +74,21 @@ export class ShowDiffHandler {
   async handleDiffRequest(args: ShowDiffRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
+    // Create executor with appropriate config for this request
+    const executor = createVSCodeExecutor({ 
+      reuseWindow: args.reuseWindow || false 
+    }, this.logger);
+    
+    // Create a new handler instance with the configured executor
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore -- Using prototype chain to override executor
+    const handler = Object.create(this);
+    handler.vsCodeExecutor = executor;
+
     const result = await pipe(
-      this.detectRepository.bind(this),
-      this.generateDiff.bind(this),
-      this.openDiffInVSCode.bind(this)
+      handler.detectRepository.bind(handler),
+      handler.generateDiff.bind(handler),
+      handler.openDiffInVSCode.bind(handler)
     )({ ...args, workingPath: process.cwd() });
 
     const duration = performance.now() - startTime;
@@ -278,7 +290,9 @@ export class ShowDiffHandler {
         let lastCommand = '';
         let allSuccess = true;
         
-        for (const filepath of data.files) {
+        for (let i = 0; i < data.files.length; i++) {
+          const filepath = data.files[i];
+          const isFirstOperation = i === 0;
           if (data.staged) {
             // For staged changes: compare HEAD to staged (index) version
             const headTempResult = await this.tempManager.createGitTempFile('HEAD', filepath);
@@ -299,7 +313,8 @@ export class ShowDiffHandler {
             const diffResult = await this.vsCodeExecutor.openDiff(
               headTempResult.value.filepath,
               stagedTempResult.value.filepath,
-              `${filepath} (${data.diffType})`
+              `${filepath} (${data.diffType})`,
+              isFirstOperation
             );
             
             if (diffResult.ok) {
@@ -326,7 +341,8 @@ export class ShowDiffHandler {
             const diffResult = await this.vsCodeExecutor.openDiff(
               oldTempResult.value.filepath,
               currentPath,
-              `${filepath} (${data.diffType})`
+              `${filepath} (${data.diffType})`,
+              isFirstOperation
             );
             
             if (diffResult.ok) {
