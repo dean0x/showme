@@ -10,12 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Multi-file support in CLI - open multiple files with a single command
 - Version flag (`--version`, `-v`) to display CLI version
+- Multi-tab diff support - ShowDiff now opens each file in a separate diff tab when multiple files are specified
 
 ### Changed
 - Renamed MCP tools from `showme.file` and `showme.diff` to `ShowFile` and `ShowDiff`
 - Removed `cwd` requirement from MCP configuration - now uses current working directory
 - Allow absolute paths to any file on the system
 - Path validation now only blocks directory traversal for relative paths that escape workspace
+- ShowDiff with multiple files now opens individual diff tabs instead of a single patch file
 
 ### Fixed
 - Aligned CLI functionality with MCP server capabilities

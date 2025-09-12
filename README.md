@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server that enables AI assistants to open files a
 - 🎯 **Direct VS Code Integration** - Opens files and diffs directly in your editor
 - 🎨 **Syntax Highlighting** - Full language support through VS Code
 - 📂 **Multi-file Support** - Open multiple files as tabs in a single command
-- 🔍 **Git Diff Visualization** - Side-by-side diff comparisons for single files
+- 🔍 **Git Diff Visualization** - Side-by-side diff comparisons with multi-tab support
 - 📍 **Line Navigation** - Jump to specific line numbers
 - ⚡ **Fast & Lightweight** - Minimal dependencies, instant response
 
@@ -100,11 +100,17 @@ await ShowDiff({ base: "main" })
 // Compare commits
 await ShowDiff({ base: "HEAD~2", target: "HEAD" })
 
-// Specific file diff (side-by-side view)
+// Single file diff (side-by-side view)
 await ShowDiff({ 
   base: "HEAD~1", 
   target: "HEAD",
   files: ["src/index.ts"]
+})
+
+// Multiple file diffs (opens each in separate tab)
+await ShowDiff({ 
+  base: "main",
+  files: ["src/index.ts", "package.json", "README.md"]
 })
 ```
 

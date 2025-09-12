@@ -244,37 +244,64 @@ export class ShowDiffHandler {
       const tempFiles: TempFile[] = [];
       let vsCodeResult: Result<VSCodeResult, VSCodeExecutorError>;
 
-      // For single file diffs, create temp files and use VS Code diff
-      if (data.files && data.files.length === 1) {
-        const filepath = data.files[0];
+      // For specific files, open each as a separate diff tab
+      if (data.files && data.files.length > 0) {
+        // Open each file as a separate diff tab
+        let lastCommand = '';
+        let allSuccess = true;
         
-        // Create temp file for old version
-        const oldRef = data.target || data.base || 'HEAD';
-        const oldTempResult = await this.tempManager.createGitTempFile(oldRef, filepath);
+        for (const filepath of data.files) {
+          // Create temp file for old version
+          const oldRef = data.base || 'HEAD';
+          const oldTempResult = await this.tempManager.createGitTempFile(oldRef, filepath);
+          
+          if (!oldTempResult.ok) {
+            this.logger.warn(`Skipping diff for ${filepath}: ${oldTempResult.error.message}`);
+            continue;
+          }
+          
+          tempFiles.push(oldTempResult.value);
+          
+          // Use current working version as new file
+          const currentPath = `${data.workingPath}/${filepath}`;
+          
+          const diffResult = await this.vsCodeExecutor.openDiff(
+            oldTempResult.value.filepath,
+            currentPath,
+            `${filepath} (${data.diffType})`
+          );
+          
+          if (diffResult.ok) {
+            lastCommand = diffResult.value.command;
+          } else {
+            allSuccess = false;
+            this.logger.warn(`Failed to open diff for ${filepath}: ${diffResult.error.message}`);
+          }
+        }
         
-        if (!oldTempResult.ok) {
+        // Return success if at least one diff was opened
+        vsCodeResult = {
+          ok: tempFiles.length > 0,
+          value: {
+            command: lastCommand,
+            args: [],
+            success: allSuccess && tempFiles.length > 0,
+            message: `Opened ${tempFiles.length} diff tabs in VS Code`
+          }
+        } as Result<VSCodeResult, VSCodeExecutorError>;
+        
+        if (!vsCodeResult.ok) {
           return {
             ok: false,
             error: new ShowDiffError(
-              `Failed to create temp file for old version: ${oldTempResult.error.message}`,
-              oldTempResult.error.code,
-              { filepath, oldRef }
+              'Failed to open any diff tabs',
+              'NO_DIFFS_OPENED',
+              { files: data.files }
             )
           };
         }
-        
-        tempFiles.push(oldTempResult.value);
-        
-        // Use current working version as new file
-        const currentPath = `${data.workingPath}/${filepath}`;
-        
-        vsCodeResult = await this.vsCodeExecutor.openDiff(
-          oldTempResult.value.filepath,
-          currentPath,
-          `${filepath} (${data.diffType})`
-        );
       } else {
-        // For multiple files or complex diffs, show the raw diff in a temp file
+        // For general diffs without specific files, show the raw diff in a temp file
         const diffContent = data.diffResult.raw;
         const diffTempResult = await this.tempManager.createTempFile(
           diffContent,
@@ -368,8 +395,24 @@ export class ShowDiffHandler {
     tempFiles: TempFile[];
   }): MCPResponse {
     const stats = data.statistics;
+    
+    // Special message for multiple file tabs
+    if (data.files && data.files.length > 1) {
+      const changesText = stats.additions + stats.deletions > 0
+        ? ` with +${stats.additions}/-${stats.deletions} changes`
+        : '';
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Opened ${data.files.length} diff tabs in VS Code: ${data.diffType}${changesText}`
+          }
+        ]
+      };
+    }
+    
     const filesText = data.files && data.files.length > 0 
-      ? ` (${data.files.length} files)` 
+      ? ` (${data.files.length} file)` 
       : stats.filesChanged > 0 
         ? ` (${stats.filesChanged} files)`
         : '';
