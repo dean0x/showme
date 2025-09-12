@@ -278,10 +278,7 @@ export class ShowDiffHandler {
         let lastCommand = '';
         let allSuccess = true;
         
-        for (let i = 0; i < data.files.length; i++) {
-          const filepath = data.files[i];
-          // For multiple files, reuse window after the first one
-          const reuseWindow = i > 0;
+        for (const filepath of data.files) {
           if (data.staged) {
             // For staged changes: compare HEAD to staged (index) version
             const headTempResult = await this.tempManager.createGitTempFile('HEAD', filepath);
@@ -302,8 +299,7 @@ export class ShowDiffHandler {
             const diffResult = await this.vsCodeExecutor.openDiff(
               headTempResult.value.filepath,
               stagedTempResult.value.filepath,
-              `${filepath} (${data.diffType})`,
-              reuseWindow
+              `${filepath} (${data.diffType})`
             );
             
             if (diffResult.ok) {
@@ -330,8 +326,7 @@ export class ShowDiffHandler {
             const diffResult = await this.vsCodeExecutor.openDiff(
               oldTempResult.value.filepath,
               currentPath,
-              `${filepath} (${data.diffType})`,
-              reuseWindow
+              `${filepath} (${data.diffType})`
             );
             
             if (diffResult.ok) {

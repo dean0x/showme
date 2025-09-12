@@ -14,8 +14,6 @@ import { ErrorFactory, VSCodeExecutorError } from './error-handling.js';
 export interface VSCodeConfig {
   /** Command to execute (code, cursor, vim, etc.) */
   command: string;
-  /** Whether to open in new window */
-  newWindow: boolean;
   /** Whether to wait for editor to close */
   wait: boolean;
 }
@@ -155,11 +153,10 @@ export class VSCodeExecutor {
   async openDiff(
     oldFile: string,
     newFile: string,
-    _title?: string,
-    reuseWindow?: boolean
+    _title?: string
   ): Promise<Result<VSCodeResult, VSCodeExecutorError>> {
     try {
-      const args = this.buildDiffArgs(oldFile, newFile, reuseWindow);
+      const args = this.buildDiffArgs(oldFile, newFile);
       const command = this.config.command;
 
       this.logger.info('Opening diff in VS Code', { 
@@ -209,9 +206,8 @@ export class VSCodeExecutor {
   private buildFileArgs(filepath: string, lineNumber?: number): string[] {
     const args: string[] = [];
     
-    if (this.config.newWindow) {
-      args.push('--new-window');
-    }
+    // Always reuse window to keep files in tabs
+    args.push('--reuse-window');
     
     if (this.config.wait) {
       args.push('--wait');
@@ -233,9 +229,8 @@ export class VSCodeExecutor {
   private buildMultiFileArgs(filepaths: string[]): string[] {
     const args: string[] = [];
     
-    if (this.config.newWindow) {
-      args.push('--new-window');
-    }
+    // Always reuse window to keep files in tabs
+    args.push('--reuse-window');
     
     if (this.config.wait) {
       args.push('--wait');
@@ -250,17 +245,11 @@ export class VSCodeExecutor {
   /**
    * Build arguments for opening a diff
    */
-  private buildDiffArgs(oldFile: string, newFile: string, reuseWindow?: boolean): string[] {
+  private buildDiffArgs(oldFile: string, newFile: string): string[] {
     const args: string[] = [];
     
-    // Handle window reuse/new window logic
-    if (reuseWindow) {
-      // Explicitly reuse the existing window for multiple diffs
-      args.push('--reuse-window');
-    } else if (this.config.newWindow) {
-      // Only add new-window if not reusing
-      args.push('--new-window');
-    }
+    // Always reuse window for diffs to keep them in tabs
+    args.push('--reuse-window');
     
     if (this.config.wait) {
       args.push('--wait');
@@ -390,7 +379,6 @@ export function createVSCodeExecutor(
 ): VSCodeExecutor {
   const defaultConfig: VSCodeConfig = {
     command: 'code',
-    newWindow: true,  // Open files in new windows by default
     wait: false
   };
 
