@@ -32,8 +32,7 @@ npm install showme
 
 ## MCP Configuration
 
-Add to your MCP client configuration:
-
+### Using npx (recommended)
 ```json
 {
   "mcpServers": {
@@ -45,13 +44,13 @@ Add to your MCP client configuration:
 }
 ```
 
-Or if installed globally:
-
+### Local development
 ```json
 {
   "mcpServers": {
     "showme": {
-      "command": "showme-mcp"
+      "command": "node",
+      "args": ["/path/to/showme-mcp/dist/index.js"]
     }
   }
 }
