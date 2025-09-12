@@ -21,13 +21,13 @@ A Model Context Protocol (MCP) server that enables coding agents to open files a
 ## Installation
 
 ```bash
-npm install -g showme
+npm install -g @dean0x/showme
 ```
 
 Or install locally in your project:
 
 ```bash
-npm install showme
+npm install @dean0x/showme
 ```
 
 ## MCP Configuration
@@ -38,7 +38,7 @@ npm install showme
   "mcpServers": {
     "showme": {
       "command": "npx",
-      "args": ["showme"]
+      "args": ["@dean0x/showme"]
     }
   }
 }
@@ -297,7 +297,7 @@ If you get an error about `code` command not being found:
 ### Permission denied
 If you get permission errors when installing globally:
 ```bash
-sudo npm install -g showme
+sudo npm install -g @dean0x/showme
 ```
 
 ### MCP server not connecting

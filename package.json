@@ -1,5 +1,5 @@
 {
-  "name": "showme",
+  "name": "@dean0x/showme",
   "version": "0.1.0",
   "description": "MCP server providing ShowFile and ShowDiff tools for VS Code integration with syntax highlighting",
   "main": "dist/index.js",
