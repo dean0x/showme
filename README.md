@@ -88,6 +88,8 @@ Display git diffs with rich visualization.
 - `base` (string, optional) - Base commit, branch, or tag
 - `target` (string, optional) - Target commit, branch, or tag
 - `files` (string[], optional) - Specific files to include in diff
+- `staged` (boolean, optional) - Show only staged changes
+- `unstaged` (boolean, optional) - Show only unstaged changes
 
 **Examples:**
 ```typescript
@@ -111,6 +113,18 @@ await ShowDiff({
 await ShowDiff({ 
   base: "main",
   files: ["src/index.ts", "package.json", "README.md"]
+})
+
+// Show only staged changes
+await ShowDiff({ staged: true })
+
+// Show only unstaged changes
+await ShowDiff({ unstaged: true })
+
+// Staged changes for specific files
+await ShowDiff({ 
+  staged: true,
+  files: ["src/index.ts", "package.json"]
 })
 ```
 
@@ -148,6 +162,17 @@ showme diff -b v1.0.0 -t v1.1.0
 # Show diff for specific files
 showme diff --files src/index.ts src/utils.ts
 showme diff -f package.json
+
+# Show only staged changes
+showme diff --staged
+showme diff -s
+
+# Show only unstaged changes  
+showme diff --unstaged
+showme diff -u
+
+# Staged changes for specific files
+showme diff --staged -f src/index.ts README.md
 ```
 
 ### Other Commands

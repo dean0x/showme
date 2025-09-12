@@ -109,6 +109,14 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
                   },
                   description: 'Specific files to include in diff (optional)',
                 },
+                staged: {
+                  type: 'boolean',
+                  description: 'Show only staged changes (optional)',
+                },
+                unstaged: {
+                  type: 'boolean',
+                  description: 'Show only unstaged changes (optional)',
+                },
               },
             },
           },
@@ -156,6 +164,8 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
             if (Array.isArray(args.files) && args.files.every(f => typeof f === 'string')) {
               request.files = args.files as string[];
             }
+            if (typeof args.staged === 'boolean') request.staged = args.staged;
+            if (typeof args.unstaged === 'boolean') request.unstaged = args.unstaged;
             return await showDiffHandler.handleDiffRequest(request);
           }
           

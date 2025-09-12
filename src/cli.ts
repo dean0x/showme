@@ -18,6 +18,8 @@ interface CliArgs {
   base?: string;
   target?: string;
   files?: string[];
+  staged?: boolean;
+  unstaged?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -51,6 +53,10 @@ function parseArgs(): CliArgs {
         parsed.target = next;
         i++;
       }
+    } else if (arg === '--staged' || arg === '-s') {
+      parsed.staged = true;
+    } else if (arg === '--unstaged' || arg === '-u') {
+      parsed.unstaged = true;
     } else if (arg === '--files' || arg === '-f') {
       parsed.files = [];
       i++;
@@ -101,11 +107,15 @@ Diff command:
   showme diff -b main              Show diff from main branch
   showme diff -b HEAD~1 -t HEAD    Show diff between commits
   showme diff -f src/index.ts      Show diff for specific files
+  showme diff --staged             Show only staged changes
+  showme diff --unstaged           Show only unstaged changes
 
   Options:
     -b, --base <ref>               Base commit, branch, or tag
     -t, --target <ref>             Target commit, branch, or working directory
     -f, --files <files...>         Specific files to include in diff
+    -s, --staged                   Show only staged changes
+    -u, --unstaged                 Show only unstaged changes
 
 Global options:
   -h, --help                       Show this help message
@@ -153,7 +163,9 @@ async function handleDiffCommand(args: CliArgs, logger: ConsoleLogger): Promise<
   const result = await handler.handleDiffRequest({
     base: args.base,
     target: args.target,
-    files: args.files
+    files: args.files,
+    staged: args.staged,
+    unstaged: args.unstaged
   });
 
   console.log(result.content[0].text);

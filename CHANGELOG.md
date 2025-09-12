@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-file support in CLI - open multiple files with a single command
 - Version flag (`--version`, `-v`) to display CLI version
 - Multi-tab diff support - ShowDiff now opens each file in a separate diff tab when multiple files are specified
+- Optional `staged` and `unstaged` parameters for ShowDiff to filter changes by git status
+- CLI flags `--staged`/`-s` and `--unstaged`/`-u` for filtering diffs by git status
 
 ### Changed
 - Renamed MCP tools from `showme.file` and `showme.diff` to `ShowFile` and `ShowDiff`
