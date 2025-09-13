@@ -286,8 +286,24 @@ export class ShowDiffHandler {
       // For specific files or files from diff result, open each as a separate diff tab
       if (filesToDiff.length > 0) {
         // Open each file as a separate diff tab
+        // NOTE: VS Code limitation - when reuseWindow is true, each --diff command
+        // replaces the previous one instead of opening as a new tab. Only the last
+        // file will be visible. We need to use separate windows for multiple diffs.
         let lastCommand = '';
         let allSuccess = true;
+        
+        // For multiple files with reuseWindow, create a new executor that forces new windows
+        // because VS Code --diff with --reuse-window replaces the previous diff
+        let executor = this.vsCodeExecutor;
+        // Check if the current executor has reuseWindow set (accessing private property via bracket notation)
+        const executorConfig = (this.vsCodeExecutor as unknown as { config: { reuseWindow?: boolean; command: string; wait: boolean } })['config'];
+        if (filesToDiff.length > 1 && executorConfig?.reuseWindow) {
+          this.logger.info('Creating new VSCodeExecutor with reuseWindow:false for multiple diffs (VS Code limitation)');
+          executor = new VSCodeExecutor(
+            { ...executorConfig, reuseWindow: false },
+            this.logger
+          );
+        }
         
         for (let i = 0; i < filesToDiff.length; i++) {
           const filepath = filesToDiff[i];
@@ -309,7 +325,7 @@ export class ShowDiffHandler {
             }
             tempFiles.push(stagedTempResult.value);
             
-            const diffResult = await this.vsCodeExecutor.openDiff(
+            const diffResult = await executor.openDiff(
               headTempResult.value.filepath,
               stagedTempResult.value.filepath,
               `${filepath} (${data.diffType})`,
@@ -337,7 +353,7 @@ export class ShowDiffHandler {
             // Use current working version as new file
             const currentPath = `${data.workingPath}/${filepath}`;
             
-            const diffResult = await this.vsCodeExecutor.openDiff(
+            const diffResult = await executor.openDiff(
               oldTempResult.value.filepath,
               currentPath,
               `${filepath} (${data.diffType})`,
