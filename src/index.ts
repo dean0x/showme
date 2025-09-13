@@ -109,11 +109,11 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
               properties: {
                 base: {
                   type: 'string',
-                  description: 'Base commit, branch, or tag for comparison',
+                  description: 'Base commit, branch, or tag for comparison (omit for working directory changes)',
                 },
                 target: {
                   type: 'string', 
-                  description: 'Target commit, branch, or working directory',
+                  description: 'Target commit or branch (omit for working directory)',
                 },
                 files: {
                   type: 'array',
@@ -124,11 +124,11 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
                 },
                 staged: {
                   type: 'boolean',
-                  description: 'Show only staged changes (optional)',
+                  description: 'Show only staged changes (default: false)',
                 },
                 unstaged: {
                   type: 'boolean',
-                  description: 'Show only unstaged changes (optional)',
+                  description: 'Show only unstaged changes (default: false)',
                 },
                 reuseWindow: {
                   type: 'boolean',
