@@ -74,7 +74,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
         tools: [
           {
             name: 'ShowFile',
-            description: 'Opens file(s) in VS Code. No summary needed - user will see the file directly',
+            description: 'Opens file(s) in VS Code. Only call this function if you were explicitly and immediately asked to show a file by the user in their last message to you. Don\'t provide any summary or additional commentary after calling the tool - the user will see the file directly.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -103,7 +103,7 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
           },
           {
             name: 'ShowDiff',
-            description: 'Opens git diff in VS Code. No summary needed - user will see changes directly',
+            description: 'Opens git diff in VS Code. Only call this function if you were explicitly and immediately asked to show a changes by the user in their last message to you. Don\'t provide any summary or additional commentary after calling the tool - the user will see the file directly.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -124,11 +124,11 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
                 },
                 staged: {
                   type: 'boolean',
-                  description: 'Show only staged changes (default: false)',
+                  description: 'Show only staged changes (default: false). Only use this param if explicitly asked by user to show staged only changes.',
                 },
                 unstaged: {
                   type: 'boolean',
-                  description: 'Show only unstaged changes (default: false)',
+                  description: 'Show only unstaged changes (default: false). Only use this param if explicitly asked by user to show unstaged only changes.',
                 },
                 reuseWindow: {
                   type: 'boolean',
