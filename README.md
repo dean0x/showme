@@ -27,8 +27,8 @@ Review what you need, close the window, and continue the conversation. It's ephe
 
 | Tool | Purpose | Example |
 |------|---------|---------|
-| `ShowFile` | Opens file(s) in VS Code | `ShowFile({ path: "README.md" })` |
-| `ShowDiff` | Opens git diff in VS Code | `ShowDiff({ base: "main" })` |
+| `ShowFile` | Opens file(s) in VS Code | `ShowFile({ files: ["README.md"] })` |
+| `ShowDiff` | Shows changes since last commit | `ShowDiff({ files: ["src/index.ts"] })` |
 
 ## Installation
 
@@ -76,68 +76,42 @@ npm install @dean0x/showme
 Open one or multiple files in VS Code.
 
 **Parameters:**
-- `path` (string, optional) - Single file path relative to workspace
-- `paths` (string[], optional) - Multiple file paths to open as tabs
-- `line_highlight` (number, optional) - Line number to jump to (single file only)
+- `files` (string[], required) - Files to open in VS Code
+- `line` (number, optional) - Line number to jump to (only applies to first file)
 
 **Examples:**
 ```typescript
 // Single file
-await ShowFile({ path: "src/index.ts" })
+await ShowFile({ files: ["src/index.ts"] })
 
-// Single file with line highlight
-await ShowFile({ path: "src/utils.ts", line_highlight: 42 })
+// Single file with line number
+await ShowFile({ files: ["src/utils.ts"], line: 42 })
 
-// Multiple files
-await ShowFile({ paths: ["src/index.ts", "package.json", "README.md"] })
+// Multiple files as tabs
+await ShowFile({ files: ["src/index.ts", "package.json", "README.md"] })
 ```
 
 ### `ShowDiff`
-Display git diffs with rich visualization.
+Display git diffs showing all changes since the last commit (HEAD vs working directory).
 
 **Parameters:**
-- `base` (string, optional) - Base commit, branch, or tag
-- `target` (string, optional) - Target commit, branch, or tag
-- `files` (string[], optional) - Specific files to include in diff
-- `staged` (boolean, optional) - Show only staged changes
-- `unstaged` (boolean, optional) - Show only unstaged changes
+- `files` (string[], optional) - Specific files to show diff for. If not provided, shows all changed files.
 
 **Examples:**
 ```typescript
-// Working directory changes
+// Show all changes since last commit
 await ShowDiff({})
 
-// Compare with branch
-await ShowDiff({ base: "main" })
+// Show changes for specific file
+await ShowDiff({ files: ["src/index.ts"] })
 
-// Compare commits
-await ShowDiff({ base: "HEAD~2", target: "HEAD" })
-
-// Single file diff (side-by-side view)
-await ShowDiff({ 
-  base: "HEAD~1", 
-  target: "HEAD",
-  files: ["src/index.ts"]
-})
-
-// Multiple file diffs (opens each in separate tab)
-await ShowDiff({ 
-  base: "main",
+// Show changes for multiple files (opens each in separate tab)
+await ShowDiff({
   files: ["src/index.ts", "package.json", "README.md"]
 })
-
-// Show only staged changes
-await ShowDiff({ staged: true })
-
-// Show only unstaged changes
-await ShowDiff({ unstaged: true })
-
-// Staged changes for specific files
-await ShowDiff({ 
-  staged: true,
-  files: ["src/index.ts", "package.json"]
-})
 ```
+
+**Note:** ShowDiff always compares HEAD to the working directory, showing all uncommitted changes (both staged and unstaged).
 
 ## CLI Usage (Testing)
 
@@ -159,31 +133,15 @@ showme file src/*.ts  # Using shell expansion
 
 ### Diff Commands
 ```bash
-# Show working directory changes
+# Show all changes since last commit
 showme diff
-
-# Show diff from specific branch
-showme diff --base main
-showme diff -b feature-branch
-
-# Compare two commits/branches
-showme diff --base HEAD~1 --target HEAD
-showme diff -b v1.0.0 -t v1.1.0
 
 # Show diff for specific files
 showme diff --files src/index.ts src/utils.ts
 showme diff -f package.json
 
-# Show only staged changes
-showme diff --staged
-showme diff -s
-
-# Show only unstaged changes  
-showme diff --unstaged
-showme diff -u
-
-# Staged changes for specific files
-showme diff --staged -f src/index.ts README.md
+# Show diff for multiple files
+showme diff -f src/index.ts README.md package.json
 ```
 
 ### Other Commands
