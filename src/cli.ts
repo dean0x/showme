@@ -3,7 +3,7 @@
 /**
  * ShowMe CLI - Test interface for ShowMe MCP functionality
  * Usage: showme file <path> [--line <number>]
- *        showme diff [--base <ref>] [--target <ref>] [--files <files...>]
+ *        showme diff [--files <files...>]
  */
 
 import { ShowFileHandler } from "./handlers/show-file-handler.js";
@@ -26,12 +26,7 @@ interface CliArgs {
   path?: string;
   paths?: string[];
   line?: number;
-  base?: string;
-  target?: string;
   files?: string[];
-  staged?: boolean;
-  unstaged?: boolean;
-  reuseWindow?: boolean;
   help?: boolean;
   version?: boolean;
 }
@@ -53,24 +48,6 @@ function parseArgs(): CliArgs {
         parsed.line = parseInt(next, 10);
         i++;
       }
-    } else if (arg === '--base' || arg === '-b') {
-      const next = args[i + 1];
-      if (next && !next.startsWith('-')) {
-        parsed.base = next;
-        i++;
-      }
-    } else if (arg === '--target' || arg === '-t') {
-      const next = args[i + 1];
-      if (next && !next.startsWith('-')) {
-        parsed.target = next;
-        i++;
-      }
-    } else if (arg === '--staged' || arg === '-s') {
-      parsed.staged = true;
-    } else if (arg === '--unstaged' || arg === '-u') {
-      parsed.unstaged = true;
-    } else if (arg === '--reuse-window' || arg === '-r') {
-      parsed.reuseWindow = true;
     } else if (arg === '--files' || arg === '-f') {
       parsed.files = [];
       i++;
@@ -121,23 +98,13 @@ File command:
 
   Options:
     -l, --line <number>            Line number to highlight and jump to (single file only)
-    -r, --reuse-window             Open in current VS Code window instead of new window
 
 Diff command:
-  showme diff                      Show working directory changes
-  showme diff -b main              Show diff from main branch
-  showme diff -b HEAD~1 -t HEAD    Show diff between commits
+  showme diff                      Show all changes since last commit
   showme diff -f src/index.ts      Show diff for specific files
-  showme diff --staged             Show only staged changes
-  showme diff --unstaged           Show only unstaged changes
 
   Options:
-    -b, --base <ref>               Base commit, branch, or tag
-    -t, --target <ref>             Target commit, branch, or working directory
     -f, --files <files...>         Specific files to include in diff
-    -s, --staged                   Show only staged changes
-    -u, --unstaged                 Show only unstaged changes
-    -r, --reuse-window             Open in current VS Code window instead of new window
 
 Global options:
   -h, --help                       Show this help message
@@ -164,22 +131,24 @@ async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<
   }
 
   const handler = ShowFileHandler.create(logger);
-  
-  // Determine if we're handling single or multiple files
-  const isMultiple = args.paths && args.paths.length > 1;
-  
-  const result = await handler.handleFileRequest(
-    isMultiple
-      ? { 
-          paths: args.paths,
-          reuseWindow: args.reuseWindow 
-        }
-      : { 
-          path: args.path || (args.paths && args.paths[0]),
-          line_highlight: args.line,
-          reuseWindow: args.reuseWindow
-        }
-  );
+
+  // Collect files to open
+  const files: string[] = [];
+  if (args.paths && args.paths.length > 0) {
+    files.push(...args.paths);
+  } else if (args.path) {
+    files.push(args.path);
+  }
+
+  if (files.length === 0) {
+    console.error('Error: No files specified');
+    process.exit(1);
+  }
+
+  const result = await handler.handleFileRequest({
+    files,
+    line: args.line
+  });
 
   console.log(result.content[0].text);
 }
@@ -187,12 +156,7 @@ async function handleFileCommand(args: CliArgs, logger: ConsoleLogger): Promise<
 async function handleDiffCommand(args: CliArgs, logger: ConsoleLogger): Promise<void> {
   const handler = ShowDiffHandler.create(logger);
   const result = await handler.handleDiffRequest({
-    base: args.base,
-    target: args.target,
-    files: args.files,
-    staged: args.staged,
-    unstaged: args.unstaged,
-    reuseWindow: args.reuseWindow
+    files: args.files
   });
 
   console.log(result.content[0].text);

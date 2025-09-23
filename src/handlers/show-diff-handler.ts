@@ -4,7 +4,7 @@
  */
 
 import { GitDetector, type GitRepository } from '../utils/git-detector.js';
-import { GitDiffGenerator, type DiffResult, GitDiffError } from '../utils/git-diff-generator.js';
+import { GitDiffGenerator, type DiffResult } from '../utils/git-diff-generator.js';
 import { VSCodeExecutor, createVSCodeExecutor, type VSCodeResult } from '../utils/vscode-executor.js';
 import { GitTempManager, type TempFile } from '../utils/git-temp-manager.js';
 import { pipe } from '../utils/pipe.js';
@@ -18,12 +18,7 @@ declare const performance: { now(): number };
  * Show diff request arguments
  */
 export interface ShowDiffRequest {
-  base?: string;
-  target?: string;
-  files?: string[];
-  staged?: boolean;   // Show only staged changes
-  unstaged?: boolean; // Show only unstaged changes
-  reuseWindow?: boolean;  // Open in current window instead of new window
+  files?: string[];  // Optional list of files to show diff for
 }
 
 /**
@@ -74,9 +69,9 @@ export class ShowDiffHandler {
   async handleDiffRequest(args: ShowDiffRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
-    // Create executor with appropriate config for this request
-    this.vsCodeExecutor = createVSCodeExecutor({ 
-      reuseWindow: args.reuseWindow || false 
+    // Always reuse window for diffs
+    this.vsCodeExecutor = createVSCodeExecutor({
+      reuseWindow: true
     }, this.logger);
 
     const result = await pipe(
@@ -104,11 +99,7 @@ export class ShowDiffHandler {
    */
   private async detectRepository(args: ShowDiffRequest & { workingPath: string }): Promise<Result<{
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
-    staged?: boolean;
-    unstaged?: boolean;
     repository: GitRepository;
   }, ShowDiffError>> {
     const detectionResult = await this.gitDetector.detectRepository(args.workingPath);
@@ -124,99 +115,40 @@ export class ShowDiffHandler {
       };
     }
 
-    const result: {
-      workingPath: string;
-      base?: string;
-      target?: string;
-      files?: string[];
-      staged?: boolean;
-      unstaged?: boolean;
-      repository: GitRepository;
-    } = {
-      workingPath: args.workingPath,
-      repository: detectionResult.value
-    };
-    
-    if (args.base !== undefined) result.base = args.base;
-    if (args.target !== undefined) result.target = args.target;
-    if (args.files !== undefined) result.files = args.files;
-    if (args.staged !== undefined) result.staged = args.staged;
-    if (args.unstaged !== undefined) result.unstaged = args.unstaged;
-
     return {
       ok: true,
-      value: result
+      value: {
+        workingPath: args.workingPath,
+        repository: detectionResult.value,
+        ...(args.files && { files: args.files })
+      }
     };
   }
 
   /**
-   * Generate git diff based on parameters
+   * Generate git diff comparing HEAD to working directory
    */
   private async generateDiff(data: {
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
-    staged?: boolean;
-    unstaged?: boolean;
     repository: GitRepository;
   }): Promise<Result<{
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
     repository: GitRepository;
     diffResult: DiffResult;
     diffType: string;
   }, ShowDiffError>> {
     try {
-      let diffResult: Result<DiffResult, GitDiffError>;
-      let diffType: string;
-
-      // Handle staged/unstaged flags
-      if (data.staged && !data.base && !data.target) {
-        // Show only staged changes
-        diffResult = await this.gitDiffGenerator.getStagedDiff(
-          data.workingPath,
-          data.files
-        );
-        diffType = 'staged changes';
-      } else if (data.unstaged && !data.base && !data.target) {
-        // Show only unstaged changes
-        diffResult = await this.gitDiffGenerator.getUnstagedDiff(
-          data.workingPath,
-          data.files
-        );
-        diffType = 'unstaged changes';
-      } else if (data.base && data.target) {
-        // Commit range diff
-        diffResult = await this.gitDiffGenerator.generateDiff(
-          data.workingPath,
-          {
-            type: 'commit-range',
-            base: data.base,
-            target: data.target,
-            paths: data.files
-          }
-        );
-        diffType = `${data.base}..${data.target}`;
-      } else if (data.base) {
-        // Base to working directory
-        diffResult = await this.gitDiffGenerator.getBranchDiff(
-          data.workingPath,
-          data.base,
-          data.files
-        );
-        diffType = `${data.base}..working`;
-      } else {
-        // Default: Working directory changes (both staged and unstaged)
-        // This shows all changes when no flags are specified
-        diffResult = await this.gitDiffGenerator.getUnstagedDiff(
-          data.workingPath,
-          data.files
-        );
-        diffType = 'working changes';
-      }
+      // Always compare HEAD to working directory (shows all changes)
+      const diffResult = await this.gitDiffGenerator.generateDiff(
+        data.workingPath,
+        {
+          type: 'branch',
+          target: 'HEAD',
+          paths: data.files
+        }
+      );
 
       if (!diffResult.ok) {
         return {
@@ -224,7 +156,7 @@ export class ShowDiffHandler {
           error: new ShowDiffError(
             `Git diff generation failed: ${diffResult.error.message}`,
             diffResult.error.code,
-            { diffType, files: data.files }
+            { diffType: 'HEAD vs working', files: data.files }
           )
         };
       }
@@ -234,7 +166,7 @@ export class ShowDiffHandler {
         value: {
           ...data,
           diffResult: diffResult.value,
-          diffType
+          diffType: 'HEAD vs working'
         }
       };
     } catch (error) {
@@ -244,7 +176,7 @@ export class ShowDiffHandler {
         error: new ShowDiffError(
           `Diff generation error: ${err.message}`,
           'DIFF_GENERATION_ERROR',
-          { base: data.base, target: data.target, files: data.files }
+          { files: data.files }
         )
       };
     }
@@ -255,18 +187,12 @@ export class ShowDiffHandler {
    */
   private async openDiffInVSCode(data: {
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
-    staged?: boolean;
-    unstaged?: boolean;
     repository: GitRepository;
     diffResult: DiffResult;
     diffType: string;
   }): Promise<Result<{
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
     diffType: string;
     statistics: DiffResult['stats'];
@@ -292,64 +218,32 @@ export class ShowDiffHandler {
         for (let i = 0; i < filesToDiff.length; i++) {
           const filepath = filesToDiff[i];
           const isFirstOperation = i === 0;
-          if (data.staged) {
-            // For staged changes: compare HEAD to staged (index) version
-            const headTempResult = await this.tempManager.createGitTempFile('HEAD', filepath);
-            if (!headTempResult.ok) {
-              this.logger.warn(`Skipping staged diff for ${filepath}: ${headTempResult.error.message}`);
-              continue;
-            }
-            tempFiles.push(headTempResult.value);
-            
-            // Get staged version from index (empty ref means use index)
-            const stagedTempResult = await this.tempManager.createGitTempFile('', filepath);
-            if (!stagedTempResult.ok) {
-              this.logger.warn(`Skipping staged diff for ${filepath}: no staged version`);
-              continue;
-            }
-            tempFiles.push(stagedTempResult.value);
-            
-            const diffResult = await this.vsCodeExecutor.openDiff(
-              headTempResult.value.filepath,
-              stagedTempResult.value.filepath,
-              `${filepath} (${data.diffType})`,
-              isFirstOperation
-            );
-            
-            if (diffResult.ok) {
-              lastCommand = diffResult.value.command;
-            } else {
-              allSuccess = false;
-              this.logger.warn(`Failed to open staged diff for ${filepath}: ${diffResult.error.message}`);
-            }
+
+          // Always compare HEAD version to working copy
+          const headTempResult = await this.tempManager.createGitTempFile('HEAD', filepath);
+
+          if (!headTempResult.ok) {
+            this.logger.warn(`Skipping diff for ${filepath}: ${headTempResult.error.message}`);
+            continue;
+          }
+
+          tempFiles.push(headTempResult.value);
+
+          // Use current working version as new file
+          const currentPath = `${data.workingPath}/${filepath}`;
+
+          const diffResult = await this.vsCodeExecutor.openDiff(
+            headTempResult.value.filepath,
+            currentPath,
+            `${filepath} (changes since last commit)`,
+            isFirstOperation
+          );
+
+          if (diffResult.ok) {
+            lastCommand = diffResult.value.command;
           } else {
-            // For unstaged or regular diffs: compare old version to working copy
-            const oldRef = data.base || 'HEAD';
-            const oldTempResult = await this.tempManager.createGitTempFile(oldRef, filepath);
-            
-            if (!oldTempResult.ok) {
-              this.logger.warn(`Skipping diff for ${filepath}: ${oldTempResult.error.message}`);
-              continue;
-            }
-            
-            tempFiles.push(oldTempResult.value);
-            
-            // Use current working version as new file
-            const currentPath = `${data.workingPath}/${filepath}`;
-            
-            const diffResult = await this.vsCodeExecutor.openDiff(
-              oldTempResult.value.filepath,
-              currentPath,
-              `${filepath} (${data.diffType})`,
-              isFirstOperation
-            );
-            
-            if (diffResult.ok) {
-              lastCommand = diffResult.value.command;
-            } else {
-              allSuccess = false;
-              this.logger.warn(`Failed to open diff for ${filepath}: ${diffResult.error.message}`);
-            }
+            allSuccess = false;
+            this.logger.warn(`Failed to open diff for ${filepath}: ${diffResult.error.message}`);
           }
         }
         
@@ -414,8 +308,6 @@ export class ShowDiffHandler {
 
       const result: {
         workingPath: string;
-        base?: string;
-        target?: string;
         files?: string[];
         diffType: string;
         statistics: DiffResult['stats'];
@@ -428,12 +320,9 @@ export class ShowDiffHandler {
         statistics: data.diffResult.stats,
         command: vsCodeResult.value.command,
         success: vsCodeResult.value.success,
-        tempFiles
+        tempFiles,
+        ...(data.files && { files: data.files })
       };
-      
-      if (data.base !== undefined) result.base = data.base;
-      if (data.target !== undefined) result.target = data.target;
-      if (data.files !== undefined) result.files = data.files;
 
       // No cleanup needed - temp files use deterministic names and get overwritten
 
@@ -459,8 +348,6 @@ export class ShowDiffHandler {
    */
   private formatSuccessResponse(data: {
     workingPath: string;
-    base?: string;
-    target?: string;
     files?: string[];
     diffType: string;
     statistics: DiffResult['stats'];
@@ -479,7 +366,7 @@ export class ShowDiffHandler {
         content: [
           {
             type: 'text',
-            text: `Opened ${data.files.length} diff tabs in VS Code: ${data.diffType}${changesText}`
+            text: `Opened ${data.files.length} diff tabs in VS Code (changes since last commit)${changesText}`
           }
         ]
       };
@@ -499,7 +386,7 @@ export class ShowDiffHandler {
       content: [
         {
           type: 'text',
-          text: `Git diff opened in VS Code: ${data.diffType}${filesText}${changesText}`
+          text: `Git diff opened in VS Code (changes since last commit)${filesText}${changesText}`
         }
       ]
     };

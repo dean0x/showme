@@ -74,65 +74,38 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
         tools: [
           {
             name: 'ShowFile',
-            description: 'Opens file(s) in VS Code. Only call this function if you were explicitly and immediately asked to show a file by the user in their last message to you. Don\'t provide any summary or additional commentary after calling the tool - the user will see the file directly.',
+            description: 'Opens files in VS Code. Only call this function if you were explicitly and immediately asked to show a file by the user in their last message to you. Don\'t provide any summary or commentary after calling the tool - the user will see the files directly.',
             inputSchema: {
               type: 'object',
               properties: {
-                path: {
-                  type: 'string',
-                  description: 'Single file path relative to workspace root (use this OR paths, not both)',
-                },
-                paths: {
-                  type: 'array',
-                  items: {
-                    type: 'string'
-                  },
-                  description: 'Multiple file paths to open as tabs in VS Code',
-                },
-                line_highlight: {
-                  type: 'number',
-                  description: 'Optional line number to highlight and jump to (only works with single path)',
-                  minimum: 1,
-                },
-                reuseWindow: {
-                  type: 'boolean',
-                  description: 'Open in current VS Code window instead of new window (default: false)',
-                },
-              },
-            },
-          },
-          {
-            name: 'ShowDiff',
-            description: 'Opens git diff in VS Code. Only call this function if you were explicitly and immediately asked to show a changes by the user in their last message to you. Don\'t provide any summary or additional commentary after calling the tool - the user will see the file directly.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                base: {
-                  type: 'string',
-                  description: 'Base commit, branch, or tag for comparison (omit for working directory changes)',
-                },
-                target: {
-                  type: 'string', 
-                  description: 'Target commit or branch (omit for working directory)',
-                },
                 files: {
                   type: 'array',
                   items: {
                     type: 'string'
                   },
-                  description: 'Specific files to include in diff (optional)',
+                  description: 'Files to open in VS Code. Required.',
                 },
-                staged: {
-                  type: 'boolean',
-                  description: 'Show only staged changes (default: false). Only use this param if explicitly asked by user to show staged only changes.',
+                line: {
+                  type: 'number',
+                  description: 'Line number to jump to (only applies to first file). Optional.',
+                  minimum: 1,
                 },
-                unstaged: {
-                  type: 'boolean',
-                  description: 'Show only unstaged changes (default: false). Only use this param if explicitly asked by user to show unstaged only changes.',
-                },
-                reuseWindow: {
-                  type: 'boolean',
-                  description: 'Open in current VS Code window instead of new window (default: false)',
+              },
+              required: ['files'],
+            },
+          },
+          {
+            name: 'ShowDiff',
+            description: 'Opens git diff in VS Code showing changes since last commit (HEAD vs working directory). Only call this function if you were explicitly and immediately asked to show changes by the user in their last message to you. Don\'t provide any summary or commentary after calling the tool - the user will see the diff directly.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                files: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description: 'Files to show diff for. If not provided, shows all changed files. Optional.',
                 },
               },
             },
@@ -160,29 +133,22 @@ export async function createServer(resourceManager?: ResourceManager): Promise<R
         switch (name) {
           case 'ShowFile': {
             const request: ShowFileRequest = {};
-            
-            // Handle single path or multiple paths
-            if (typeof args.path === 'string') {
-              request.path = args.path;
-            } else if (Array.isArray(args.paths) && args.paths.every(p => typeof p === 'string')) {
-              request.paths = args.paths as string[];
+
+            if (Array.isArray(args.files) && args.files.every(f => typeof f === 'string')) {
+              request.files = args.files as string[];
             }
-            
-            if (typeof args.line_highlight === 'number') {
-              request.line_highlight = args.line_highlight;
+
+            if (typeof args.line === 'number') {
+              request.line = args.line;
             }
             return await showFileHandler.handleFileRequest(request);
           }
           
           case 'ShowDiff': {
             const request: ShowDiffRequest = {};
-            if (typeof args.base === 'string') request.base = args.base;
-            if (typeof args.target === 'string') request.target = args.target;
             if (Array.isArray(args.files) && args.files.every(f => typeof f === 'string')) {
               request.files = args.files as string[];
             }
-            if (typeof args.staged === 'boolean') request.staged = args.staged;
-            if (typeof args.unstaged === 'boolean') request.unstaged = args.unstaged;
             return await showDiffHandler.handleDiffRequest(request);
           }
           
