@@ -61,9 +61,9 @@ export class ShowFileHandler {
   async handleFileRequest(args: ShowFileRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
-    // Always reuse window for files
+    // Always open new window for files
     this.vsCodeExecutor = createVSCodeExecutor({
-      reuseWindow: true
+      reuseWindow: false
     }, this.logger);
 
     // Validate we have files to open

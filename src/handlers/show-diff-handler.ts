@@ -69,9 +69,9 @@ export class ShowDiffHandler {
   async handleDiffRequest(args: ShowDiffRequest): Promise<MCPResponse> {
     const startTime = performance.now();
 
-    // Always reuse window for diffs
+    // Always open new window for diffs
     this.vsCodeExecutor = createVSCodeExecutor({
-      reuseWindow: true
+      reuseWindow: false
     }, this.logger);
 
     const result = await pipe(
